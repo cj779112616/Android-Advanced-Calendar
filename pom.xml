@@ -6,7 +6,7 @@
 	<!-- Module description -->
 	<groupId>net.alexoro</groupId>
     <artifactId>calendar</artifactId>
-    <packaging>apklib</packaging>
+    <packaging>apk</packaging>
 	<version>1.0</version>
     <name>Android Advanced Calendar</name>
 	
