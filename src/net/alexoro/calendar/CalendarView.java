@@ -1,12 +1,8 @@
 package net.alexoro.calendar;
 
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Rect;
+import android.graphics.*;
 import android.util.AttributeSet;
-import android.util.MonthDisplayHelper;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -62,6 +58,9 @@ public class CalendarView extends View {
         public int row;
         public int column;
         public String value;
+        public boolean isPressed;
+        public boolean isSelected;
+        public boolean isEnabled;
     }
 
     static class AnimationArgs {
@@ -89,7 +88,7 @@ public class CalendarView extends View {
 
     private Map<Integer, String> mMapDayToString;
     private long mTouchEventStartTime;
-    private LocalDate mCurrentlyPressedDate;
+    private Cell mCurrentlyPressedCell;
     private OnDateClickListener mOnDateClickListener;
 
     private float mDayTextSize;
@@ -111,6 +110,8 @@ public class CalendarView extends View {
             mMapDayToString.put(i, String.valueOf(i));
         }
         mTouchEventStartTime = -1;
+        mCurrentlyPressedCell = new Cell(-1, -1);
+        mOnDateClickListener = null;
 
         initWithDefaults();
     }
@@ -302,13 +303,23 @@ public class CalendarView extends View {
             mDayDrawArgs.month = args.month;
             mDayDrawArgs.row = args.row;
             mDayDrawArgs.column = i;
-            mDayDrawArgs.value = mMapDayToString.get(args.month.getDayAt(args.row, mDayDrawArgs.column));
+
+            int day = args.month.getDayAt(args.row, mDayDrawArgs.column);
+            mDayDrawArgs.value = mMapDayToString.get(day);
+            mDayDrawArgs.isPressed  = false;
+            mDayDrawArgs.isSelected = false;
+            mDayDrawArgs.isEnabled  = false;
+
+            if (mDayDrawArgs.row == mCurrentlyPressedCell.row
+                    && mDayDrawArgs.column == mCurrentlyPressedCell.column) {
+                mDayDrawArgs.isPressed = true;
+            }
+
             drawDay(canvas, mDayDrawArgs);
         }
     }
 
     protected void drawDay(Canvas canvas, DayDrawArgs args) {
-//        mDrawHelper.paint.setColor(mRandom.nextInt());
         mDrawHelper.paint.setColor(Color.DKGRAY);
         canvas.drawRect(
                 args.area.left + 1,
@@ -317,7 +328,7 @@ public class CalendarView extends View {
                 args.area.bottom - 1,
                 mDrawHelper.paint);
 
-        if (mCurrentlyPressedDate != null) {
+        if (args.isPressed) {
             mDrawHelper.paint.setColor(Color.GREEN);
         } else {
             mDrawHelper.paint.setColor(Color.WHITE);
@@ -342,25 +353,31 @@ public class CalendarView extends View {
         switch (event.getAction() & MotionEvent.ACTION_MASK) {
             case MotionEvent.ACTION_DOWN:
                 mTouchEventStartTime = System.currentTimeMillis();
-                onDatePressed(getDateForCoordinates(event.getX(), event.getY()));
+                onCellPressed(getCellForCoordinates(event.getX(), event.getY()));
                 return true;
             case MotionEvent.ACTION_MOVE:
-                onDatePressed(getDateForCoordinates(event.getX(), event.getY()));
+                onCellPressed(getCellForCoordinates(event.getX(), event.getY()));
                 return true;
             case MotionEvent.ACTION_UP:
                 if (System.currentTimeMillis() - mTouchEventStartTime < (long) ViewConfiguration.getLongPressTimeout()) {
                     mTouchEventStartTime = -1;
                     onClick(getDateForCoordinates(event.getX(), event.getY()));
                 }
-                onDatePressed(null);
+                onCellPressed(null);
                 return true;
             default:
                 return super.onTouchEvent(event);
         }
     }
 
-    protected void onDatePressed(LocalDate date) {
-        mCurrentlyPressedDate = date;
+    protected void onCellPressed(Cell cell) {
+        if (cell == null) {
+            mCurrentlyPressedCell.row = -1;
+            mCurrentlyPressedCell.column = -1;
+        } else {
+            mCurrentlyPressedCell.row = cell.row;
+            mCurrentlyPressedCell.column = cell.column;
+        }
         invalidate();
     }
 
@@ -383,10 +400,15 @@ public class CalendarView extends View {
     }
 
     protected LocalDate getDateForCoordinates(float x, float y) {
-        int row = (int) y / mDayCellSize.height();
-        int column = (int) x / mDayCellSize.width();
+        Cell cell = getCellForCoordinates(x, y);
         return new MonthDescriptor(mMonthToShow.getYear(), mMonthToShow.getMonthOfYear() - 1, mFirstDayOfWeek)
-                .getLocalDate(row, column);
+                .getLocalDate(cell.row, cell.column);
+    }
+
+    protected Cell getCellForCoordinates(float x, float y) {
+        return new Cell(
+                (int) y / mDayCellSize.height(),
+                (int) x / mDayCellSize.width());
     }
 
 }
