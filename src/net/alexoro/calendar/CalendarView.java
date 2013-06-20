@@ -1,14 +1,19 @@
 package net.alexoro.calendar;
 
 import android.content.Context;
-import android.graphics.*;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Rect;
 import android.util.AttributeSet;
-import android.util.MonthDisplayHelper;
 import android.view.View;
-import android.view.animation.AccelerateDecelerateInterpolator;
-import android.view.animation.AccelerateInterpolator;
+import android.view.animation.Interpolator;
 import android.view.animation.LinearInterpolator;
+import org.joda.time.LocalDate;
 
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -27,22 +32,51 @@ public class CalendarView extends View {
         NONE
     }
 
+    static class DrawHelper {
+        public Paint paint;
+    }
 
-    private int mCellWidth;
-    private int mCellHeight;
+    static class MonthDrawArgs {
+        public Rect area;
+        public MonthDescriptor month;
+    }
 
-    private int mGridWidth;
-    private int mGridHeight;
+    static class WeekDrawArgs {
+        public Rect area;
+        public MonthDescriptor month;
+        public int row;
+    }
 
-    private Paint mPaint;
+    static class DayDrawArgs {
+        public Rect area;
+        public MonthDescriptor month;
+        public int row;
+        public int column;
+    }
 
-    private int mTranslate = 0;
+    static class AnimationArgs {
+        private Interpolator interpolator;
+        private long startTime;
+        private long endDime;
+    }
 
-    private android.view.animation.Interpolator mIn;
-    private long mAnimStart;
-    private long mAnimEnd;
+    private Rect mGridSize;
+    private Rect mDayCellSize;
 
-    private MonthDisplayHelper mMonthDisplayHelper;
+    private int mFirstDayOfWeek;
+    private LocalDate mToday;
+    private LocalDate mMonthToShow;
+
+    private MonthTransition mMonthTransition;
+    private Random mRandom;
+
+    private DrawHelper mDrawHelper;
+    private MonthDrawArgs mMonthDrawArgs;
+    private WeekDrawArgs mWeekDrawArgs;
+    private DayDrawArgs mDayDrawArgs;
+    private AnimationArgs mAnimationArgs;
+
+    private Map<Integer, String> mMapDayToString;
 
 
     public CalendarView(Context context) {
@@ -55,90 +89,191 @@ public class CalendarView extends View {
 
     public CalendarView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
-
-        mPaint = new Paint();
-        mIn = new AccelerateInterpolator();
-
         initWithDefaults();
-
-        /*getHandler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                mTranslate = -50;
-            }
-        }, 5000);*/
-        mTranslate = 0;
-        mAnimStart = System.currentTimeMillis();
-        mAnimEnd = System.currentTimeMillis() + 2500;
-
-        mMonthDisplayHelper = new MonthDisplayHelper(2013, 5);
+        setupAnimation();
     }
 
-    private void initWithDefaults() {
-        mCellWidth = mCellHeight = 64;
+    protected void initWithDefaults() {
+        mMapDayToString = new HashMap<Integer, String>();
+        for (int i = 1; i <= 31; i++) {
+            mMapDayToString.put(i, String.valueOf(i));
+        }
+
+        mGridSize = new Rect();
+        mDayCellSize = new Rect(0, 0, 40, 40);
+
+        mFirstDayOfWeek = Calendar.getInstance().getFirstDayOfWeek();
+        mToday = new LocalDate();
+        mMonthToShow = new LocalDate(mToday);
+        mMonthTransition = MonthTransition.HORIZONTAL;
+        mRandom = new Random(System.currentTimeMillis());
+
+        mDrawHelper = new DrawHelper();
+        mDrawHelper.paint = new Paint();
+
+        mMonthDrawArgs = new MonthDrawArgs();
+        mMonthDrawArgs.area = new Rect();
+        mMonthDrawArgs.month = getMonthDescriptor(mToday, 0);
+
+        mWeekDrawArgs = new WeekDrawArgs();
+        mWeekDrawArgs.area = new Rect();
+        mWeekDrawArgs.month = mMonthDrawArgs.month;
+        mWeekDrawArgs.row = -1;
+
+        mDayDrawArgs = new DayDrawArgs();
+        mDayDrawArgs.area = new Rect();
+        mDayDrawArgs.month = mMonthDrawArgs.month;
+        mDayDrawArgs.row = -1;
+        mDayDrawArgs.column = -1;
+    }
+
+    protected void setupAnimation() {
+        mAnimationArgs = new AnimationArgs();
+        mAnimationArgs.interpolator = new LinearInterpolator();
+        mAnimationArgs.startTime = System.currentTimeMillis();
+        mAnimationArgs.endDime = System.currentTimeMillis() + 5000;
     }
 
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        mGridWidth = mCellWidth*DAYS_IN_WEEK;
-        mGridHeight = mCellHeight * WEEKS_TO_SHOW;
-        setMeasuredDimension(mGridWidth, mGridHeight);
+        mGridSize.left = 0;
+        mGridSize.right = mDayCellSize.width()*DAYS_IN_WEEK;
+        mGridSize.top = 0;
+        mGridSize.bottom = mDayCellSize.height() * WEEKS_TO_SHOW;
+        setMeasuredDimension(mGridSize.width(), mGridSize.height());
     }
-
-    int mTranslateX = 0;
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        /*long animDuration = mAnimEnd - mAnimStart;
+        // animate sliding
+        executeTranslateAnimation(canvas);
+
+        // draw the monthes
+        drawMonthes(canvas);
+    }
+
+    protected void executeTranslateAnimation(Canvas canvas) {
+        // do animation via translation the canvas
+        long animDuration = mAnimationArgs.endDime - mAnimationArgs.startTime;
+        long animOffset = System.currentTimeMillis() - mAnimationArgs.startTime;
+        float translate = mAnimationArgs.interpolator.getInterpolation((float)animOffset/animDuration);
+        if (translate > 1f) {
+            translate = 1f;
+        }
+
+        if (animOffset < animDuration) {
+            canvas.translate((int)(translate * mGridSize.width()), 0);
+            invalidate();
+        } else {
+            mMonthToShow = mMonthToShow.minusMonths(1);
+        }
+    }
+
+    protected void drawMonthes(Canvas canvas) {
+        // draw current month
+        mMonthDrawArgs.area.set(0, 0, mGridSize.width(), mGridSize.height());
+        mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, 0);
+        drawMonth(canvas, mMonthDrawArgs);
+
+        if (mMonthTransition == MonthTransition.HORIZONTAL) {
+            // draw previous month
+            mMonthDrawArgs.area.set(-mGridSize.width(), 0, 0, mGridSize.height());
+            mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, -1);
+            drawMonth(canvas, mMonthDrawArgs);
+
+            // draw next month
+            mMonthDrawArgs.area.set(mGridSize.width(), mGridSize.width()*2, 0, mGridSize.height());
+            mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, 1);
+            drawMonth(canvas, mMonthDrawArgs);
+        }
+
+        if (mMonthTransition == MonthTransition.VERTICAL) {
+            // draw previous month
+            mMonthDrawArgs.area.set(0, -mGridSize.height(), mGridSize.width(), 0);
+            mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, -1);
+            drawMonth(canvas, mMonthDrawArgs);
+
+            // draw next month
+            mMonthDrawArgs.area.set(0, mGridSize.height(), mGridSize.width(), mGridSize.height()*2);
+            mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, 1);
+            drawMonth(canvas, mMonthDrawArgs);
+        }
+    }
+
+    protected void drawMonth(Canvas canvas, MonthDrawArgs args) {
+        for (int i = 0; i < args.month.getRowsCount(); i++) {
+            mWeekDrawArgs.area.set(
+                    args.area.left,
+                    args.area.top + i * mDayCellSize.height(),
+                    args.area.right,
+                    args.area.top + i * mDayCellSize.height() + mDayCellSize.height());
+            mWeekDrawArgs.month = args.month;
+            mWeekDrawArgs.row = i;
+            drawWeek(canvas, mWeekDrawArgs);
+        }
+    }
+
+    protected void drawWeek(Canvas canvas, WeekDrawArgs args) {
+        for (int i = 0; i < args.month.getColumnsCount(); i++) {
+            mDayDrawArgs.area.set(
+                    args.area.left + i * mDayCellSize.width(),
+                    args.area.top,
+                    args.area.left + i * mDayCellSize.width() + mDayCellSize.width(),
+                    args.area.bottom);
+            mDayDrawArgs.month = args.month;
+            mDayDrawArgs.row = args.row;
+            mDayDrawArgs.column = i;
+            drawDay(canvas, mDayDrawArgs);
+        }
+    }
+
+    protected void drawDay(Canvas canvas, DayDrawArgs args) {
+        mDrawHelper.paint.setColor(mRandom.nextInt());
+        canvas.drawRect(args.area, mDrawHelper.paint);
+        mDrawHelper.paint.setColor(Color.WHITE);
+        int day = args.month.getDayAt(args.row, args.column);
+        canvas.drawText(
+                mMapDayToString.get(args.month.getDayAt(args.row, args.column)),
+                args.area.centerX(),
+                args.area.centerY(),
+                mDrawHelper.paint);
+    }
+
+
+    protected MonthDescriptor getMonthDescriptor(LocalDate month, int monthOffset) {
+        if (monthOffset == 0) {
+            return new MonthDescriptor(month.getYear(), month.getMonthOfYear() - 1, mFirstDayOfWeek);
+        } else {
+            if (monthOffset > 0) {
+                return getMonthDescriptor(month.plusMonths(monthOffset), 0);
+            } else {
+                return getMonthDescriptor(month.minusMonths(monthOffset), 0);
+            }
+        }
+    }
+
+
+    /* Animations
+        private Interpolator mIn;
+        private long mAnimStart;
+        private long mAnimEnd;
+
+        long animDuration = mAnimEnd - mAnimStart;
         long animOffset = System.currentTimeMillis() - mAnimStart;
         float translate = mIn.getInterpolation((float)animOffset/animDuration);
         if (translate > 1f) {
             translate = 1f;
         }
         mTranslateX = (int)(translate * mGridWidth);
-        canvas.translate(mTranslateX, 0);*/
+        canvas.translate(mTranslateX, 0);
 
-        canvas.drawColor(Color.GREEN);
-
-        mPaint.setColor(Color.RED);
-        canvas.drawRect(-mGridWidth, 0, 0, mGridHeight, mPaint);
-
-        mPaint.setColor(Color.BLUE);
-        canvas.drawRect(mGridWidth, 0, mGridHeight*2, mGridHeight, mPaint);
-
-        /*if (animOffset < animDuration) {
+        if (animOffset < animDuration) {
             invalidate();
-        }*/
-
-        for (int i = 0; i < WEEKS_TO_SHOW; i++) {
-            drawWeek(canvas, mMonthDisplayHelper, i);
         }
-
-    }
-
-    private Rect mRect = new Rect();
-
-    protected void drawWeek(Canvas canvas, MonthDisplayHelper mdh, int row) {
-        mRect.top = row * mCellHeight;
-        mRect.bottom = mRect.top + mCellHeight;
-        for (int i = 0; i < DAYS_IN_WEEK; i++) {
-            mRect.left = i * mCellWidth;
-            mRect.right = mRect.left + mCellWidth;
-            drawDay(canvas, mRect, mdh.getDayAt(row, i));
-        }
-    }
-
-    private Random mRandom = new Random(System.currentTimeMillis());
-
-    protected void drawDay(Canvas canvas, Rect rect, int day) {
-        mPaint.setColor(mRandom.nextInt());
-        canvas.drawRect(rect, mPaint);
-        mPaint.setColor(Color.WHITE);
-        canvas.drawText(String.valueOf(day), rect.centerX(), rect.centerY(), mPaint);
-    }
+     */
 
 
 }
