@@ -1,10 +1,11 @@
 package net.alexoro.calendar;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.*;
 import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.StateListDrawable;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -37,6 +38,7 @@ public class CalendarView extends View {
 
     private static final int DAYS_IN_WEEK = 7;  // columns
     private static final int WEEKS_TO_SHOW = 6; // rows
+    private static final int NUMBER_OF_SUPPORTED_COLOR_STATES = 3;
 
     static class MonthDrawArgs {
         public Rect area;
@@ -55,10 +57,14 @@ public class CalendarView extends View {
         public int row;
         public int column;
         public String value;
+
         public CellDrawInfo cellDrawInfo;
+        public int[] textColorStates;
+
         public float textSize;
         public int textColor;
         public Bitmap background;
+
         public Paint cellBackgroundPaint;
         public Paint cellTextPaint;
         public float measuredTextWidth;
@@ -75,12 +81,10 @@ public class CalendarView extends View {
 
     static class CellDrawInfo {
         public float textSize;
-        public Drawable defaultBackground;
+        public StateListDrawable drawable;
+        public ColorStateList textColor;
         public Bitmap defaultBackgroundBitmap;
-        public int defaultTextColor;
-        public Drawable pressedBackground;
         public Bitmap pressedBackgroundBitmap;
-        public int pressedTextColor;
     }
 
 
@@ -152,19 +156,18 @@ public class CalendarView extends View {
         mDayDrawHelper.month = mMonthDrawArgs.month;
         mDayDrawHelper.row = -1;
         mDayDrawHelper.column = -1;
+        mDayDrawHelper.textColorStates = new int[NUMBER_OF_SUPPORTED_COLOR_STATES];
         mDayDrawHelper.cellBackgroundPaint = new Paint();
         mDayDrawHelper.cellTextPaint = new Paint();
 
         mAnimationArgs = new AnimationArgs();
         mAnimationArgs.interpolator = new AccelerateDecelerateInterpolator();
-        mAnimationArgs.duration = 400;
+        mAnimationArgs.duration = 700;
 
         mThisMonthCellInfo = new CellDrawInfo();
         mThisMonthCellInfo.textSize = 14f;
-        mThisMonthCellInfo.defaultTextColor = Color.WHITE;
-        mThisMonthCellInfo.defaultBackground = new ColorDrawable(Color.DKGRAY);
-        mThisMonthCellInfo.pressedTextColor = Color.DKGRAY;
-        mThisMonthCellInfo.pressedBackground = new ColorDrawable(Color.WHITE);
+        mThisMonthCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_this_month);
+        mThisMonthCellInfo.textColor = getResources().getColorStateList(R.color.nac__this_month);
 
         mNeighbourMonthCellInfo = mThisMonthCellInfo;
         mTodayCellInfo = mThisMonthCellInfo;
@@ -342,14 +345,6 @@ public class CalendarView extends View {
                 h.area.top,
                 h.cellBackgroundPaint);
 
-        /*mDrawHelper.cellBackgroundPaint.setColor(Color.DKGRAY);
-        canvas.drawRect(
-                args.area.left + 1,
-                args.area.top + 1,
-                args.area.right - 1,
-                args.area.bottom - 1,
-                mDrawHelper.cellBackgroundPaint);*/
-
         h.cellTextPaint.setAntiAlias(true);
         h.cellTextPaint.setStyle(Paint.Style.FILL);
         h.cellTextPaint.setTextSize(h.textSize);
@@ -375,15 +370,17 @@ public class CalendarView extends View {
             isPressed = true;
         }
 
+        h.textColorStates[0] = isPressed  ? android.R.attr.state_pressed  : 0;
+        h.textColorStates[1] = isSelected ? android.R.attr.state_selected : 0;
+        h.textColorStates[2] = isEnabled  ? android.R.attr.state_enabled  : 0;
         h.cellDrawInfo = mThisMonthCellInfo;
+        h.textColor = getTextColorForState(h.cellDrawInfo.textColor, h.textColorStates);
 
         if (isPressed) {
             h.textSize = h.cellDrawInfo.textSize;
-            h.textColor = h.cellDrawInfo.pressedTextColor;
             h.background = h.cellDrawInfo.pressedBackgroundBitmap;
         } else {
             h.textSize = h.cellDrawInfo.textSize;
-            h.textColor = h.cellDrawInfo.defaultTextColor;
             h.background = h.cellDrawInfo.defaultBackgroundBitmap;
         }
     }
@@ -472,8 +469,16 @@ public class CalendarView extends View {
     }
 
     protected void createBackgroundDrawablesCache() {
-        mThisMonthCellInfo.defaultBackgroundBitmap = drawableToBitmap(mThisMonthCellInfo.defaultBackground);
-        mThisMonthCellInfo.pressedBackgroundBitmap = drawableToBitmap(mThisMonthCellInfo.pressedBackground);
+        mThisMonthCellInfo.drawable.setState(new int[] {});
+        mThisMonthCellInfo.defaultBackgroundBitmap = drawableToBitmap(mThisMonthCellInfo.drawable);
+        mThisMonthCellInfo.drawable.setState(new int[] {android.R.attr.state_pressed});
+        mThisMonthCellInfo.pressedBackgroundBitmap = drawableToBitmap(mThisMonthCellInfo.drawable);
+    }
+
+    protected int getTextColorForState(ColorStateList list, int[] states) {
+        return list.getColorForState(
+                states,
+                list.getDefaultColor());
     }
 
 }
