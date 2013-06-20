@@ -39,6 +39,7 @@ public class CalendarView extends View {
     private static final int DAYS_IN_WEEK = 7;  // columns
     private static final int WEEKS_TO_SHOW = 6; // rows
     private static final int NUMBER_OF_SUPPORTED_COLOR_STATES = 3;
+    private static final int ACTION_MASK = 255; // MotionEvent.ACTION_MASK was introduce only in API #5
 
     static class MonthDrawArgs {
         public Rect area;
@@ -423,7 +424,7 @@ public class CalendarView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        switch (event.getAction() & MotionEvent.ACTION_MASK) {
+        switch (event.getAction() & ACTION_MASK) {
             case MotionEvent.ACTION_DOWN:
                 mTouchEventStartTime = System.currentTimeMillis();
                 onCellPressed(getCellForCoordinates(event.getX(), event.getY()));
