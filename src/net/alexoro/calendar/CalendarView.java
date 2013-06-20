@@ -6,7 +6,10 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.util.AttributeSet;
+import android.util.MonthDisplayHelper;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.Interpolator;
 import org.joda.time.LocalDate;
@@ -22,14 +25,20 @@ import java.util.Map;
  */
 public class CalendarView extends View {
 
-    private static final int DAYS_IN_WEEK = 7;  // columns
-    private static final int WEEKS_TO_SHOW = 6; // rows
-
     public enum MonthTransition {
         VERTICAL,
         HORIZONTAL,
         NONE
     }
+
+    public interface OnDateClickListener {
+        void onClick(LocalDate date);
+    }
+
+
+    private static final int DAYS_IN_WEEK = 7;  // columns
+    private static final int WEEKS_TO_SHOW = 6; // rows
+
 
     static class DrawHelper {
         public Paint paint;
@@ -79,6 +88,9 @@ public class CalendarView extends View {
     private AnimationArgs mAnimationArgs;
 
     private Map<Integer, String> mMapDayToString;
+    private long mTouchEventStartTime;
+    private LocalDate mCurrentlyPressedDate;
+    private OnDateClickListener mOnDateClickListener;
 
     private float mDayTextSize;
 
@@ -93,15 +105,17 @@ public class CalendarView extends View {
 
     public CalendarView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
-        initWithDefaults();
-    }
 
-    protected void initWithDefaults() {
         mMapDayToString = new HashMap<Integer, String>();
         for (int i = 1; i <= 31; i++) {
             mMapDayToString.put(i, String.valueOf(i));
         }
+        mTouchEventStartTime = -1;
 
+        initWithDefaults();
+    }
+
+    protected void initWithDefaults() {
         mGridSize = new Rect();
         mDayCellSize = new Rect(0, 0, 40, 40);
         mMonthTransition = MonthTransition.NONE;
@@ -142,6 +156,15 @@ public class CalendarView extends View {
     public MonthTransition getMonthTransition() {
         return mMonthTransition;
     }
+
+    public OnDateClickListener getOnDateClickListener() {
+        return mOnDateClickListener;
+    }
+
+    public void setOnDateClickListener(OnDateClickListener onDateClickListener) {
+        mOnDateClickListener = onDateClickListener;
+    }
+
 
     public void nextMonth() {
         if (mAnimationArgs.active) {
@@ -198,8 +221,8 @@ public class CalendarView extends View {
             executeTranslateAnimation(canvas);
         }
 
-        // draw the monthes
-        drawMonthes(canvas);
+        // draw the months
+        drawMonths(canvas);
     }
 
     protected void executeTranslateAnimation(Canvas canvas) {
@@ -225,7 +248,7 @@ public class CalendarView extends View {
         }
     }
 
-    protected void drawMonthes(Canvas canvas) {
+    protected void drawMonths(Canvas canvas) {
         // draw current month
         mMonthDrawArgs.area.set(0, 0, mGridSize.width(), mGridSize.height());
         mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, 0);
@@ -307,12 +330,53 @@ public class CalendarView extends View {
     }
 
 
+    // ============================================
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        switch (event.getAction() & MotionEvent.ACTION_MASK) {
+            case MotionEvent.ACTION_DOWN:
+                mTouchEventStartTime = System.currentTimeMillis();
+                mCurrentlyPressedDate = getDateForCoordinates(event.getX(), event.getY());
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                mCurrentlyPressedDate = getDateForCoordinates(event.getX(), event.getY());
+                return true;
+            case MotionEvent.ACTION_UP:
+                if (System.currentTimeMillis() - mTouchEventStartTime < (long) ViewConfiguration.getLongPressTimeout()) {
+                    mTouchEventStartTime = -1;
+                    onClick(getDateForCoordinates(event.getX(), event.getY()));
+                }
+                mCurrentlyPressedDate = null;
+                return true;
+            default:
+                return super.onTouchEvent(event);
+        }
+    }
+
+    protected void onClick(LocalDate date) {
+        if (mOnDateClickListener != null) {
+            mOnDateClickListener.onClick(date);
+        }
+    }
+
+
+    // ============================================
+
+
     protected MonthDescriptor getMonthDescriptor(LocalDate month, int monthOffset) {
         if (monthOffset == 0) {
             return new MonthDescriptor(month.getYear(), month.getMonthOfYear() - 1, mFirstDayOfWeek);
         } else {
             return getMonthDescriptor(month.plusMonths(monthOffset), 0);
         }
+    }
+
+    protected LocalDate getDateForCoordinates(float x, float y) {
+        int row = (int) y / mDayCellSize.height();
+        int column = (int) x / mDayCellSize.width();
+        return new MonthDescriptor(mMonthToShow.getYear(), mMonthToShow.getMonthOfYear() - 1, mFirstDayOfWeek)
+                .getLocalDate(row, column);
     }
 
 }

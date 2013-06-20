@@ -3,6 +3,7 @@ package tests;
 import android.app.Activity;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Toast;
 import net.alexoro.calendar.CalendarView;
 import net.alexoro.calendar.R;
 import org.joda.time.LocalDate;
@@ -23,6 +24,12 @@ public class CalendarActivity extends Activity {
 
         vCalendarView = (CalendarView) findViewById(R.id.calendar);
         vCalendarView.setMonthTransition(CalendarView.MonthTransition.HORIZONTAL);
+        vCalendarView.setOnDateClickListener(new CalendarView.OnDateClickListener() {
+            @Override
+            public void onClick(LocalDate date) {
+                Toast.makeText(CalendarActivity.this, date.toDate().toString(), Toast.LENGTH_SHORT).show();
+            }
+        });
 
         findViewById(R.id.previous).setOnClickListener(new View.OnClickListener() {
             @Override

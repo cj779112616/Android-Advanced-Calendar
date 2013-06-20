@@ -1,6 +1,7 @@
 package net.alexoro.calendar;
 
 import android.util.MonthDisplayHelper;
+import org.joda.time.LocalDate;
 
 /**
  * User: alex.sorokin@realweb.ru
@@ -23,6 +24,26 @@ class MonthDescriptor extends MonthDisplayHelper {
 
     public int getColumnsCount() {
         return 7;
+    }
+
+    public LocalDate getLocalDate(int row, int column) {
+        LocalDate r;
+        int day = getDayAt(row, column);
+
+        if (isWithinCurrentMonth(row, column)) {
+            r = new LocalDate(getYear(), getMonth() + 1, day);
+        } else {
+            if (row < 2) {
+                previousMonth();
+                r = new LocalDate(getYear(), getMonth() + 1, day);
+                nextMonth();
+            } else {
+                nextMonth();
+                r = new LocalDate(getYear(), getMonth() + 1, day);
+                previousMonth();
+            }
+        }
+        return r;
     }
 
 }
