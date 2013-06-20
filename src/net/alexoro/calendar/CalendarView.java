@@ -2,6 +2,9 @@ package net.alexoro.calendar;
 
 import android.content.Context;
 import android.graphics.*;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -35,12 +38,6 @@ public class CalendarView extends View {
     private static final int DAYS_IN_WEEK = 7;  // columns
     private static final int WEEKS_TO_SHOW = 6; // rows
 
-
-    static class DrawHelper {
-        public Paint paint;
-        public float measuredTextWidth;
-    }
-
     static class MonthDrawArgs {
         public Rect area;
         public MonthDescriptor month;
@@ -52,12 +49,19 @@ public class CalendarView extends View {
         public int row;
     }
 
-    static class DayDrawArgs {
+    static class DayDrawHelper {
         public Rect area;
         public MonthDescriptor month;
         public int row;
         public int column;
         public String value;
+        public CellDrawInfo cellDrawInfo;
+        public float textSize;
+        public int textColor;
+        public Bitmap background;
+        public Paint cellBackgroundPaint;
+        public Paint cellTextPaint;
+        public float measuredTextWidth;
     }
 
     static class AnimationArgs {
@@ -69,6 +73,17 @@ public class CalendarView extends View {
         public int direction;
     }
 
+    static class CellDrawInfo {
+        public float textSize;
+        public Drawable defaultBackground;
+        public Bitmap defaultBackgroundBitmap;
+        public int defaultTextColor;
+        public Drawable pressedBackground;
+        public Bitmap pressedBackgroundBitmap;
+        public int pressedTextColor;
+    }
+
+
     private Rect mGridSize;
     private Rect mDayCellSize;
     private MonthTransition mMonthTransition;
@@ -77,10 +92,9 @@ public class CalendarView extends View {
     private LocalDate mToday;
     private LocalDate mMonthToShow;
 
-    private DrawHelper mDrawHelper;
     private MonthDrawArgs mMonthDrawArgs;
     private WeekDrawArgs mWeekDrawArgs;
-    private DayDrawArgs mDayDrawArgs;
+    private DayDrawHelper mDayDrawHelper;
     private AnimationArgs mAnimationArgs;
 
     private Map<Integer, String> mMapDayToString;
@@ -88,7 +102,9 @@ public class CalendarView extends View {
     private Cell mCurrentlyPressedCell;
     private OnDateClickListener mOnDateClickListener;
 
-    private float mDayTextSize;
+    private CellDrawInfo mThisMonthCellInfo;
+    private CellDrawInfo mNeighbourMonthCellInfo;
+    private CellDrawInfo mTodayCellInfo;
 
 
     public CalendarView(Context context) {
@@ -122,9 +138,6 @@ public class CalendarView extends View {
         mToday = new LocalDate();
         mMonthToShow = new LocalDate(mToday);
 
-        mDrawHelper = new DrawHelper();
-        mDrawHelper.paint = new Paint();
-
         mMonthDrawArgs = new MonthDrawArgs();
         mMonthDrawArgs.area = new Rect();
         mMonthDrawArgs.month = getMonthDescriptor(mToday, 0);
@@ -134,17 +147,27 @@ public class CalendarView extends View {
         mWeekDrawArgs.month = mMonthDrawArgs.month;
         mWeekDrawArgs.row = -1;
 
-        mDayDrawArgs = new DayDrawArgs();
-        mDayDrawArgs.area = new Rect();
-        mDayDrawArgs.month = mMonthDrawArgs.month;
-        mDayDrawArgs.row = -1;
-        mDayDrawArgs.column = -1;
+        mDayDrawHelper = new DayDrawHelper();
+        mDayDrawHelper.area = new Rect();
+        mDayDrawHelper.month = mMonthDrawArgs.month;
+        mDayDrawHelper.row = -1;
+        mDayDrawHelper.column = -1;
+        mDayDrawHelper.cellBackgroundPaint = new Paint();
+        mDayDrawHelper.cellTextPaint = new Paint();
 
         mAnimationArgs = new AnimationArgs();
         mAnimationArgs.interpolator = new AccelerateDecelerateInterpolator();
         mAnimationArgs.duration = 400;
 
-        mDayTextSize = 14f;
+        mThisMonthCellInfo = new CellDrawInfo();
+        mThisMonthCellInfo.textSize = 14f;
+        mThisMonthCellInfo.defaultTextColor = Color.WHITE;
+        mThisMonthCellInfo.defaultBackground = new ColorDrawable(Color.DKGRAY);
+        mThisMonthCellInfo.pressedTextColor = Color.DKGRAY;
+        mThisMonthCellInfo.pressedBackground = new ColorDrawable(Color.WHITE);
+
+        mNeighbourMonthCellInfo = mThisMonthCellInfo;
+        mTodayCellInfo = mThisMonthCellInfo;
     }
 
     public void setMonthTransition(MonthTransition transition) {
@@ -203,10 +226,15 @@ public class CalendarView extends View {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        // calculate size
         mGridSize.left = 0;
         mGridSize.right = mDayCellSize.width()*DAYS_IN_WEEK;
         mGridSize.top = 0;
         mGridSize.bottom = mDayCellSize.height() * WEEKS_TO_SHOW;
+
+        // create cache for background drawables
+        createBackgroundDrawablesCache();
+
         setMeasuredDimension(mGridSize.width(), mGridSize.height());
     }
 
@@ -292,56 +320,77 @@ public class CalendarView extends View {
 
     protected void drawWeek(Canvas canvas, WeekDrawArgs args) {
         for (int i = 0; i < args.month.getColumnsCount(); i++) {
-            mDayDrawArgs.area.set(
+            mDayDrawHelper.area.set(
                     args.area.left + i * mDayCellSize.width(),
                     args.area.top,
                     args.area.left + i * mDayCellSize.width() + mDayCellSize.width(),
                     args.area.bottom);
-            mDayDrawArgs.month = args.month;
-            mDayDrawArgs.row = args.row;
-            mDayDrawArgs.column = i;
-            mDayDrawArgs.value = mMapDayToString.get(args.month.getDayAt(args.row, mDayDrawArgs.column));
-            drawDay(canvas, mDayDrawArgs);
+            mDayDrawHelper.month = args.month;
+            mDayDrawHelper.row = args.row;
+            mDayDrawHelper.column = i;
+            mDayDrawHelper.value = mMapDayToString.get(args.month.getDayAt(args.row, mDayDrawHelper.column));
+            drawDay(canvas, mDayDrawHelper);
         }
     }
 
-    protected void drawDay(Canvas canvas, DayDrawArgs args) {
-        boolean isPressed  = false;
-        boolean isSelected = false;
-        boolean isEnabled  = false;
+    protected void drawDay(Canvas canvas, DayDrawHelper h) {
+        dispatchCellInfo(h);
 
-        if (mDayDrawArgs.row == mCurrentlyPressedCell.row
-                && mDayDrawArgs.column == mCurrentlyPressedCell.column) {
-            isPressed = true;
-        }
+        canvas.drawBitmap(
+                h.background,
+                h.area.left,
+                h.area.top,
+                h.cellBackgroundPaint);
 
-        mDrawHelper.paint.setColor(Color.DKGRAY);
+        /*mDrawHelper.cellBackgroundPaint.setColor(Color.DKGRAY);
         canvas.drawRect(
                 args.area.left + 1,
                 args.area.top + 1,
                 args.area.right - 1,
                 args.area.bottom - 1,
-                mDrawHelper.paint);
+                mDrawHelper.cellBackgroundPaint);*/
 
-        if (isPressed) {
-            mDrawHelper.paint.setColor(Color.GREEN);
-        } else {
-            mDrawHelper.paint.setColor(Color.WHITE);
+        h.cellTextPaint.setAntiAlias(true);
+        h.cellTextPaint.setStyle(Paint.Style.FILL);
+        h.cellTextPaint.setTextSize(h.textSize);
+        h.cellTextPaint.setColor(h.textColor);
+        h.measuredTextWidth = h.cellBackgroundPaint.measureText(h.value);
+        canvas.drawText(
+                h.value,
+                h.area.centerX() - h.measuredTextWidth/2,
+                h.area.centerY() + h.textSize/2 - 2, // трик-хуик, to make it really in center. getTextBounds not helps
+                h.cellTextPaint);
+    }
+
+    protected void dispatchCellInfo(DayDrawHelper h) {
+        boolean isThisMonthCell = false;
+        boolean isNeighbourMonthCell = false;
+        boolean isTodayCell = false;
+        boolean isPressed  = false;
+        boolean isSelected = false;
+        boolean isEnabled  = false;
+
+        if (mDayDrawHelper.row == mCurrentlyPressedCell.row
+                && mDayDrawHelper.column == mCurrentlyPressedCell.column) {
+            isPressed = true;
         }
 
-        mDrawHelper.paint.setAntiAlias(true);
-        mDrawHelper.paint.setStyle(Paint.Style.FILL);
-        mDrawHelper.paint.setTextSize(mDayTextSize);
-        mDrawHelper.measuredTextWidth = mDrawHelper.paint.measureText(args.value);
-        canvas.drawText(
-                args.value,
-                args.area.centerX() - mDrawHelper.measuredTextWidth/2,
-                args.area.centerY() + mDayTextSize/2 - 2, // трик-хуик, to make it really in center. getTextBounds not helps
-                mDrawHelper.paint);
+        h.cellDrawInfo = mThisMonthCellInfo;
+
+        if (isPressed) {
+            h.textSize = h.cellDrawInfo.textSize;
+            h.textColor = h.cellDrawInfo.pressedTextColor;
+            h.background = h.cellDrawInfo.pressedBackgroundBitmap;
+        } else {
+            h.textSize = h.cellDrawInfo.textSize;
+            h.textColor = h.cellDrawInfo.defaultTextColor;
+            h.background = h.cellDrawInfo.defaultBackgroundBitmap;
+        }
     }
 
 
     // ============================================
+
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
@@ -404,6 +453,27 @@ public class CalendarView extends View {
         return new Cell(
                 (int) y / mDayCellSize.height(),
                 (int) x / mDayCellSize.width());
+    }
+
+    protected Bitmap drawableToBitmap(Drawable drawable) {
+        if (drawable instanceof BitmapDrawable) {
+            return ((BitmapDrawable)drawable).getBitmap();
+        }
+
+        Bitmap bitmap = Bitmap.createBitmap(
+                mDayCellSize.width(),
+                mDayCellSize.height(),
+                Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(1, 1, canvas.getWidth() - 1, canvas.getHeight() - 1); // TODO remove 1 and -1 later
+        drawable.draw(canvas);
+
+        return bitmap;
+    }
+
+    protected void createBackgroundDrawablesCache() {
+        mThisMonthCellInfo.defaultBackgroundBitmap = drawableToBitmap(mThisMonthCellInfo.defaultBackground);
+        mThisMonthCellInfo.pressedBackgroundBitmap = drawableToBitmap(mThisMonthCellInfo.pressedBackground);
     }
 
 }
