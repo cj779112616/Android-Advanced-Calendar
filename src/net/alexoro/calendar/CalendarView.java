@@ -58,9 +58,6 @@ public class CalendarView extends View {
         public int row;
         public int column;
         public String value;
-        public boolean isPressed;
-        public boolean isSelected;
-        public boolean isEnabled;
     }
 
     static class AnimationArgs {
@@ -303,23 +300,21 @@ public class CalendarView extends View {
             mDayDrawArgs.month = args.month;
             mDayDrawArgs.row = args.row;
             mDayDrawArgs.column = i;
-
-            int day = args.month.getDayAt(args.row, mDayDrawArgs.column);
-            mDayDrawArgs.value = mMapDayToString.get(day);
-            mDayDrawArgs.isPressed  = false;
-            mDayDrawArgs.isSelected = false;
-            mDayDrawArgs.isEnabled  = false;
-
-            if (mDayDrawArgs.row == mCurrentlyPressedCell.row
-                    && mDayDrawArgs.column == mCurrentlyPressedCell.column) {
-                mDayDrawArgs.isPressed = true;
-            }
-
+            mDayDrawArgs.value = mMapDayToString.get(args.month.getDayAt(args.row, mDayDrawArgs.column));
             drawDay(canvas, mDayDrawArgs);
         }
     }
 
     protected void drawDay(Canvas canvas, DayDrawArgs args) {
+        boolean isPressed  = false;
+        boolean isSelected = false;
+        boolean isEnabled  = false;
+
+        if (mDayDrawArgs.row == mCurrentlyPressedCell.row
+                && mDayDrawArgs.column == mCurrentlyPressedCell.column) {
+            isPressed = true;
+        }
+
         mDrawHelper.paint.setColor(Color.DKGRAY);
         canvas.drawRect(
                 args.area.left + 1,
@@ -328,7 +323,7 @@ public class CalendarView extends View {
                 args.area.bottom - 1,
                 mDrawHelper.paint);
 
-        if (args.isPressed) {
+        if (isPressed) {
             mDrawHelper.paint.setColor(Color.GREEN);
         } else {
             mDrawHelper.paint.setColor(Color.WHITE);
