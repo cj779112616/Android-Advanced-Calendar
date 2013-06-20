@@ -317,9 +317,14 @@ public class CalendarView extends View {
                 args.area.bottom - 1,
                 mDrawHelper.paint);
 
+        if (mCurrentlyPressedDate != null) {
+            mDrawHelper.paint.setColor(Color.GREEN);
+        } else {
+            mDrawHelper.paint.setColor(Color.WHITE);
+        }
+
         mDrawHelper.paint.setAntiAlias(true);
         mDrawHelper.paint.setStyle(Paint.Style.FILL);
-        mDrawHelper.paint.setColor(Color.WHITE);
         mDrawHelper.paint.setTextSize(mDayTextSize);
         mDrawHelper.measuredTextWidth = mDrawHelper.paint.measureText(args.value);
         canvas.drawText(
@@ -337,21 +342,26 @@ public class CalendarView extends View {
         switch (event.getAction() & MotionEvent.ACTION_MASK) {
             case MotionEvent.ACTION_DOWN:
                 mTouchEventStartTime = System.currentTimeMillis();
-                mCurrentlyPressedDate = getDateForCoordinates(event.getX(), event.getY());
+                onDatePressed(getDateForCoordinates(event.getX(), event.getY()));
                 return true;
             case MotionEvent.ACTION_MOVE:
-                mCurrentlyPressedDate = getDateForCoordinates(event.getX(), event.getY());
+                onDatePressed(getDateForCoordinates(event.getX(), event.getY()));
                 return true;
             case MotionEvent.ACTION_UP:
                 if (System.currentTimeMillis() - mTouchEventStartTime < (long) ViewConfiguration.getLongPressTimeout()) {
                     mTouchEventStartTime = -1;
                     onClick(getDateForCoordinates(event.getX(), event.getY()));
                 }
-                mCurrentlyPressedDate = null;
+                onDatePressed(null);
                 return true;
             default:
                 return super.onTouchEvent(event);
         }
+    }
+
+    protected void onDatePressed(LocalDate date) {
+        mCurrentlyPressedDate = date;
+        invalidate();
     }
 
     protected void onClick(LocalDate date) {
