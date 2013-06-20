@@ -14,7 +14,6 @@ import org.joda.time.LocalDate;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
 
 /**
  * User: UAS
@@ -34,6 +33,7 @@ public class CalendarView extends View {
 
     static class DrawHelper {
         public Paint paint;
+        public float measuredTextWidth;
     }
 
     static class MonthDrawArgs {
@@ -52,6 +52,7 @@ public class CalendarView extends View {
         public MonthDescriptor month;
         public int row;
         public int column;
+        public String value;
     }
 
     static class AnimationArgs {
@@ -78,6 +79,8 @@ public class CalendarView extends View {
     private AnimationArgs mAnimationArgs;
 
     private Map<Integer, String> mMapDayToString;
+
+    private float mDayTextSize;
 
 
     public CalendarView(Context context) {
@@ -128,6 +131,8 @@ public class CalendarView extends View {
         mAnimationArgs = new AnimationArgs();
         mAnimationArgs.interpolator = new AccelerateDecelerateInterpolator();
         mAnimationArgs.duration = 400;
+
+        mDayTextSize = 14f;
     }
 
     public void setMonthTransition(MonthTransition transition) {
@@ -274,6 +279,7 @@ public class CalendarView extends View {
             mDayDrawArgs.month = args.month;
             mDayDrawArgs.row = args.row;
             mDayDrawArgs.column = i;
+            mDayDrawArgs.value = mMapDayToString.get(args.month.getDayAt(args.row, mDayDrawArgs.column));
             drawDay(canvas, mDayDrawArgs);
         }
     }
@@ -287,11 +293,16 @@ public class CalendarView extends View {
                 args.area.right - 1,
                 args.area.bottom - 1,
                 mDrawHelper.paint);
+
+        mDrawHelper.paint.setAntiAlias(true);
+        mDrawHelper.paint.setStyle(Paint.Style.FILL);
         mDrawHelper.paint.setColor(Color.WHITE);
+        mDrawHelper.paint.setTextSize(mDayTextSize);
+        mDrawHelper.measuredTextWidth = mDrawHelper.paint.measureText(args.value);
         canvas.drawText(
-                mMapDayToString.get(args.month.getDayAt(args.row, args.column)),
-                args.area.centerX(),
-                args.area.centerY(),
+                args.value,
+                args.area.centerX() - mDrawHelper.measuredTextWidth/2,
+                args.area.centerY() + mDayTextSize/2 - 2, // трик-хуик, to make it really in center. getTextBounds not helps
                 mDrawHelper.paint);
     }
 
