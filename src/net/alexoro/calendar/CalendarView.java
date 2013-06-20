@@ -9,7 +9,6 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.Interpolator;
-import android.view.animation.LinearInterpolator;
 import org.joda.time.LocalDate;
 
 import java.util.Calendar;
@@ -71,7 +70,6 @@ public class CalendarView extends View {
     private int mFirstDayOfWeek;
     private LocalDate mToday;
     private LocalDate mMonthToShow;
-    private Random mRandom;
 
     private DrawHelper mDrawHelper;
     private MonthDrawArgs mMonthDrawArgs;
@@ -108,7 +106,6 @@ public class CalendarView extends View {
         mFirstDayOfWeek = Calendar.getInstance().getFirstDayOfWeek();
         mToday = new LocalDate();
         mMonthToShow = new LocalDate(mToday);
-        mRandom = new Random(System.currentTimeMillis());
 
         mDrawHelper = new DrawHelper();
         mDrawHelper.paint = new Paint();
@@ -303,34 +300,8 @@ public class CalendarView extends View {
         if (monthOffset == 0) {
             return new MonthDescriptor(month.getYear(), month.getMonthOfYear() - 1, mFirstDayOfWeek);
         } else {
-            //TODO check whether plus/minus works with negative integer correctly
-            if (monthOffset > 0) {
-                return getMonthDescriptor(month.plusMonths(Math.abs(monthOffset)), 0);
-            } else {
-                return getMonthDescriptor(month.minusMonths(Math.abs(monthOffset)), 0);
-            }
+            return getMonthDescriptor(month.plusMonths(monthOffset), 0);
         }
     }
-
-
-    /* Animations
-        private Interpolator mIn;
-        private long mAnimStart;
-        private long mAnimEnd;
-
-        long animDuration = mAnimEnd - mAnimStart;
-        long animOffset = System.currentTimeMillis() - mAnimStart;
-        float translate = mIn.getInterpolation((float)animOffset/animDuration);
-        if (translate > 1f) {
-            translate = 1f;
-        }
-        mTranslateX = (int)(translate * mGridWidth);
-        canvas.translate(mTranslateX, 0);
-
-        if (animOffset < animDuration) {
-            invalidate();
-        }
-     */
-
 
 }
