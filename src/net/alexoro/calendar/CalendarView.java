@@ -85,6 +85,10 @@ public class CalendarView extends View {
         public long duration;
         public MonthTransition transition;
         public int direction;
+        public Bitmap previous;
+        public Bitmap current;
+        public Bitmap next;
+        public Paint paint;
     }
 
     static class CellDrawInfo {
@@ -171,6 +175,9 @@ public class CalendarView extends View {
         mAnimationArgs = new AnimationArgs();
         mAnimationArgs.interpolator = new AccelerateDecelerateInterpolator();
         mAnimationArgs.duration = 700;
+        mAnimationArgs.paint = new Paint();
+        mAnimationArgs.paint.setAntiAlias(true);
+        mAnimationArgs.paint.setStyle(Paint.Style.FILL);
 
         mThisMonthCellInfo = new CellDrawInfo();
         mThisMonthCellInfo.textSize = 14f;
@@ -239,8 +246,46 @@ public class CalendarView extends View {
         mAnimationArgs.startTime = System.currentTimeMillis();
         mAnimationArgs.direction = direction;
         mAnimationArgs.transition = mMonthTransition;
+
+        mMonthDrawArgs.area.set(mGridSize);
+        mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, -1);
+        mAnimationArgs.previous = createBitmapAsGridSize();
+        createBitmapCacheForMonth(mMonthDrawArgs, mAnimationArgs.previous);
+
+        mMonthDrawArgs.area.set(mGridSize);
+        mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, 0);
+        mAnimationArgs.current = createBitmapAsGridSize();
+        createBitmapCacheForMonth(mMonthDrawArgs, mAnimationArgs.current);
+
+        mMonthDrawArgs.area.set(mGridSize);
+        mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, 1);
+        mAnimationArgs.next = createBitmapAsGridSize();
+        createBitmapCacheForMonth(mMonthDrawArgs, mAnimationArgs.next);
     }
 
+    protected void cleanAnimationBitmaps() {
+        if (mAnimationArgs.previous != null) {
+            mAnimationArgs.previous.recycle();
+            mAnimationArgs.previous = null;
+        }
+        if (mAnimationArgs.current != null) {
+            mAnimationArgs.current.recycle();
+            mAnimationArgs.current = null;
+        }
+        if (mAnimationArgs.next != null) {
+            mAnimationArgs.next.recycle();
+            mAnimationArgs.next = null;
+        }
+    }
+
+    protected Bitmap createBitmapAsGridSize() {
+        return Bitmap.createBitmap(mGridSize.width(), mGridSize.height(), Bitmap.Config.ARGB_8888);
+    }
+
+    protected void createBitmapCacheForMonth(MonthDrawArgs args, Bitmap result) {
+        Canvas canvas = new Canvas(result);
+        drawMonth(canvas, args);
+    }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
@@ -260,18 +305,14 @@ public class CalendarView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        // animate sliding
         if (mAnimationArgs.active) {
-            executeTranslateAnimation(canvas);
+            drawAnimationMonths(canvas);
+        } else {
+            drawMonths(canvas);
         }
-
-        // draw the months
-        drawMonths(canvas);
     }
 
-    // TODO maybe, just create image of calendar and apply animation
-    // it will help to avoid redraw on each animation iteration
-    protected void executeTranslateAnimation(Canvas canvas) {
+    protected void drawAnimationMonths(Canvas canvas) {
         // do animation via translation the canvas
         long animOffset = System.currentTimeMillis() - mAnimationArgs.startTime;
         float translate = mAnimationArgs.interpolator.getInterpolation((float)animOffset/mAnimationArgs.duration);
@@ -283,46 +324,74 @@ public class CalendarView extends View {
             } else {
                 canvas.translate(0, (int)(translate * mGridSize.height()));
             }
-            invalidate();
+            drawAnimationMonthsOnCanvas(canvas);
         } else {
+            // set new current month
             if (mAnimationArgs.direction > 0) {
                 mMonthToShow = mMonthToShow.plusMonths(1);
             } else {
                 mMonthToShow = mMonthToShow.minusMonths(1);
             }
+
+            // TODO we should redraw canvas to avoid "black-blink". Currently, it's a hotfix
+            cleanAnimationBitmaps();
+            mMonthDrawArgs.area.set(mGridSize);
+            mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, 0);
+            mAnimationArgs.current = createBitmapAsGridSize();
+            createBitmapCacheForMonth(mMonthDrawArgs, mAnimationArgs.current);
+            drawAnimationMonth(canvas, mMonthDrawArgs, mAnimationArgs.current);
+            cleanAnimationBitmaps();
+
             mAnimationArgs.active = false;
         }
+        invalidate();
     }
+
+    protected void drawAnimationMonthsOnCanvas(Canvas canvas) {
+        if (mAnimationArgs.transition == MonthTransition.HORIZONTAL) {
+            // draw previous month
+            mMonthDrawArgs.area.left = -mGridSize.width();
+            mMonthDrawArgs.area.top = 0;
+            drawAnimationMonth(canvas, mMonthDrawArgs, mAnimationArgs.previous);
+
+            // draw next month
+            mMonthDrawArgs.area.left = mGridSize.width();
+            mMonthDrawArgs.area.top = 0;
+            drawAnimationMonth(canvas, mMonthDrawArgs, mAnimationArgs.next);
+        }
+
+        if (mAnimationArgs.transition == MonthTransition.VERTICAL) {
+            // draw previous month
+            mMonthDrawArgs.area.left = 0;
+            mMonthDrawArgs.area.top = -mGridSize.height();
+            drawAnimationMonth(canvas, mMonthDrawArgs, mAnimationArgs.previous);
+
+            // draw next month
+            mMonthDrawArgs.area.left = 0;
+            mMonthDrawArgs.area.top = mGridSize.height();
+            drawAnimationMonth(canvas, mMonthDrawArgs, mAnimationArgs.next);
+        }
+
+        // draw current month
+        mMonthDrawArgs.area.left = 0;
+        mMonthDrawArgs.area.top = 0;
+        drawAnimationMonth(canvas, mMonthDrawArgs, mAnimationArgs.current);
+    }
+
+    protected void drawAnimationMonth(Canvas canvas, MonthDrawArgs args, Bitmap cachedMonth) {
+        canvas.drawBitmap(
+                cachedMonth,
+                args.area.left,
+                args.area.top,
+                mAnimationArgs.paint);
+    }
+
 
     protected void drawMonths(Canvas canvas) {
         // draw current month
         mMonthDrawArgs.area.set(0, 0, mGridSize.width(), mGridSize.height());
         mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, 0);
         drawMonth(canvas, mMonthDrawArgs);
-
-        if (mAnimationArgs.transition == MonthTransition.HORIZONTAL) {
-            // draw previous month
-            mMonthDrawArgs.area.set(-mGridSize.width(), 0, 0, mGridSize.height());
-            mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, -1);
-            drawMonth(canvas, mMonthDrawArgs);
-
-            // draw next month
-            mMonthDrawArgs.area.set(mGridSize.width(), 0, mGridSize.width()*2, mGridSize.height());
-            mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, 1);
-            drawMonth(canvas, mMonthDrawArgs);
-        }
-
-        if (mAnimationArgs.transition == MonthTransition.VERTICAL) {
-            // draw previous month
-            mMonthDrawArgs.area.set(0, -mGridSize.height(), mGridSize.width(), 0);
-            mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, -1);
-            drawMonth(canvas, mMonthDrawArgs);
-
-            // draw next month
-            mMonthDrawArgs.area.set(0, mGridSize.height(), mGridSize.width(), mGridSize.height()*2);
-            mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, 1);
-            drawMonth(canvas, mMonthDrawArgs);
-        }
     }
 
     protected void drawMonth(Canvas canvas, MonthDrawArgs args) {
@@ -370,7 +439,7 @@ public class CalendarView extends View {
         canvas.drawText(
                 h.value,
                 h.area.centerX() - h.measuredTextWidth/2,
-                h.area.centerY() + h.textSize/2 - 2, // трик-хуик, to make it really in center. getTextBounds not helps
+                h.area.centerY() + h.textSize/2 - 2, // трик-хуик, to make it really in current. getTextBounds not helps
                 h.cellTextPaint);
     }
 
