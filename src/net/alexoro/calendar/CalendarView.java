@@ -3,7 +3,6 @@ package net.alexoro.calendar;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.*;
-import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.StateListDrawable;
 import android.util.AttributeSet;
@@ -40,12 +39,12 @@ public class CalendarView extends View {
     private static final int WEEKS_TO_SHOW = 6; // rows
     private static final int ACTION_MASK = 255; // MotionEvent.ACTION_MASK was introduce only in API #5
 
-    static class MonthDrawArgs {
+    static class MonthDrawHelper {
         public Rect area;
         public MonthDescriptor month;
     }
 
-    static class WeekDrawArgs {
+    static class WeekDrawHelper {
         public Rect area;
         public MonthDescriptor month;
         public int row;
@@ -76,7 +75,7 @@ public class CalendarView extends View {
         NEIGHBOUR_MONTH
     }
 
-    static class AnimationArgs {
+    static class AnimationHelper {
         public boolean active;
         public Interpolator interpolator;
         public long startTime;
@@ -104,10 +103,10 @@ public class CalendarView extends View {
     private LocalDate mToday;
     private LocalDate mMonthToShow;
 
-    private MonthDrawArgs mMonthDrawArgs;
-    private WeekDrawArgs mWeekDrawArgs;
+    private MonthDrawHelper mMonthDrawHelper;
+    private WeekDrawHelper mWeekDrawHelper;
     private DayDrawHelper mDayDrawHelper;
-    private AnimationArgs mAnimationArgs;
+    private AnimationHelper mAnimationHelper;
 
     private Map<Integer, String> mMapDayToString;
     private long mTouchEventStartTime;
@@ -118,6 +117,8 @@ public class CalendarView extends View {
     private CellDrawInfo mNeighbourMonthCellInfo;
     private CellDrawInfo mTodayCellInfo;
 
+
+    //region Construction
 
     public CalendarView(Context context) {
         this(context, null);
@@ -150,29 +151,29 @@ public class CalendarView extends View {
         mToday = new LocalDate();
         mMonthToShow = new LocalDate(mToday);
 
-        mMonthDrawArgs = new MonthDrawArgs();
-        mMonthDrawArgs.area = new Rect();
-        mMonthDrawArgs.month = getMonthDescriptor(mToday, 0);
+        mMonthDrawHelper = new MonthDrawHelper();
+        mMonthDrawHelper.area = new Rect();
+        mMonthDrawHelper.month = getMonthDescriptor(mToday, 0);
 
-        mWeekDrawArgs = new WeekDrawArgs();
-        mWeekDrawArgs.area = new Rect();
-        mWeekDrawArgs.month = mMonthDrawArgs.month;
-        mWeekDrawArgs.row = -1;
+        mWeekDrawHelper = new WeekDrawHelper();
+        mWeekDrawHelper.area = new Rect();
+        mWeekDrawHelper.month = mMonthDrawHelper.month;
+        mWeekDrawHelper.row = -1;
 
         mDayDrawHelper = new DayDrawHelper();
         mDayDrawHelper.area = new Rect();
-        mDayDrawHelper.month = mMonthDrawArgs.month;
+        mDayDrawHelper.month = mMonthDrawHelper.month;
         mDayDrawHelper.row = -1;
         mDayDrawHelper.column = -1;
         mDayDrawHelper.cellBackgroundPaint = new Paint();
         mDayDrawHelper.cellTextPaint = new Paint();
 
-        mAnimationArgs = new AnimationArgs();
-        mAnimationArgs.interpolator = new AccelerateDecelerateInterpolator();
-        mAnimationArgs.duration = 700;
-        mAnimationArgs.paint = new Paint();
-        mAnimationArgs.paint.setAntiAlias(true);
-        mAnimationArgs.paint.setStyle(Paint.Style.FILL);
+        mAnimationHelper = new AnimationHelper();
+        mAnimationHelper.interpolator = new AccelerateDecelerateInterpolator();
+        mAnimationHelper.duration = 700;
+        mAnimationHelper.paint = new Paint();
+        mAnimationHelper.paint.setAntiAlias(true);
+        mAnimationHelper.paint.setStyle(Paint.Style.FILL);
 
         mThisMonthCellInfo = new CellDrawInfo();
         mThisMonthCellInfo.textSize = 14f;
@@ -190,6 +191,11 @@ public class CalendarView extends View {
         mTodayCellInfo.textColor = getResources().getColorStateList(R.color.nac__today);
     }
 
+    //endregion
+
+
+    // region Set & Get properties
+
     public void setMonthTransition(MonthTransition transition) {
         mMonthTransition = transition;
     }
@@ -206,9 +212,13 @@ public class CalendarView extends View {
         mOnDateClickListener = onDateClickListener;
     }
 
+    //endregion
+
+
+    //region Change data to show
 
     public void nextMonth() {
-        if (mAnimationArgs.active) {
+        if (mAnimationHelper.active) {
             return;
         }
         if (mMonthTransition == MonthTransition.NONE) {
@@ -220,7 +230,7 @@ public class CalendarView extends View {
     }
 
     public void previousMonth() {
-        if (mAnimationArgs.active) {
+        if (mAnimationHelper.active) {
             return;
         }
         if (mMonthTransition == MonthTransition.NONE) {
@@ -236,51 +246,61 @@ public class CalendarView extends View {
         invalidate();
     }
 
+    //endregion
+
+
+    //region Animation params
+
     protected void setupAnimation(int direction) {
-        mAnimationArgs.active = true;
-        mAnimationArgs.startTime = System.currentTimeMillis();
-        mAnimationArgs.direction = direction;
-        mAnimationArgs.transition = mMonthTransition;
+        mAnimationHelper.active = true;
+        mAnimationHelper.startTime = System.currentTimeMillis();
+        mAnimationHelper.direction = direction;
+        mAnimationHelper.transition = mMonthTransition;
 
-        mMonthDrawArgs.area.set(mGridSize);
-        mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, -1);
-        mAnimationArgs.previous = createBitmapAsGridSize();
-        createBitmapCacheForMonth(mMonthDrawArgs, mAnimationArgs.previous);
+        mMonthDrawHelper.area.set(mGridSize);
+        mMonthDrawHelper.month = getMonthDescriptor(mMonthToShow, -1);
+        mAnimationHelper.previous = createBitmapCacheAsGridSize();
+        createBitmapCacheForMonth(mMonthDrawHelper, mAnimationHelper.previous);
 
-        mMonthDrawArgs.area.set(mGridSize);
-        mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, 0);
-        mAnimationArgs.current = createBitmapAsGridSize();
-        createBitmapCacheForMonth(mMonthDrawArgs, mAnimationArgs.current);
+        mMonthDrawHelper.area.set(mGridSize);
+        mMonthDrawHelper.month = getMonthDescriptor(mMonthToShow, 0);
+        mAnimationHelper.current = createBitmapCacheAsGridSize();
+        createBitmapCacheForMonth(mMonthDrawHelper, mAnimationHelper.current);
 
-        mMonthDrawArgs.area.set(mGridSize);
-        mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, 1);
-        mAnimationArgs.next = createBitmapAsGridSize();
-        createBitmapCacheForMonth(mMonthDrawArgs, mAnimationArgs.next);
+        mMonthDrawHelper.area.set(mGridSize);
+        mMonthDrawHelper.month = getMonthDescriptor(mMonthToShow, 1);
+        mAnimationHelper.next = createBitmapCacheAsGridSize();
+        createBitmapCacheForMonth(mMonthDrawHelper, mAnimationHelper.next);
     }
 
     protected void cleanAnimationBitmaps() {
-        if (mAnimationArgs.previous != null) {
-            mAnimationArgs.previous.recycle();
-            mAnimationArgs.previous = null;
+        if (mAnimationHelper.previous != null) {
+            mAnimationHelper.previous.recycle();
+            mAnimationHelper.previous = null;
         }
-        if (mAnimationArgs.current != null) {
-            mAnimationArgs.current.recycle();
-            mAnimationArgs.current = null;
+        if (mAnimationHelper.current != null) {
+            mAnimationHelper.current.recycle();
+            mAnimationHelper.current = null;
         }
-        if (mAnimationArgs.next != null) {
-            mAnimationArgs.next.recycle();
-            mAnimationArgs.next = null;
+        if (mAnimationHelper.next != null) {
+            mAnimationHelper.next.recycle();
+            mAnimationHelper.next = null;
         }
     }
 
-    protected Bitmap createBitmapAsGridSize() {
+    protected Bitmap createBitmapCacheAsGridSize() {
         return Bitmap.createBitmap(mGridSize.width(), mGridSize.height(), Bitmap.Config.ARGB_8888);
     }
 
-    protected void createBitmapCacheForMonth(MonthDrawArgs args, Bitmap result) {
+    protected void createBitmapCacheForMonth(MonthDrawHelper args, Bitmap result) {
         Canvas canvas = new Canvas(result);
         drawMonth(canvas, args);
     }
+
+    //endregion
+
+
+    //region View overrides
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
@@ -305,21 +325,26 @@ public class CalendarView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        if (mAnimationArgs.active) {
+        if (mAnimationHelper.active) {
             drawAnimationMonths(canvas);
         } else {
             drawMonths(canvas);
         }
     }
 
+    //endregion
+
+
+    //region Animation drawing
+
     protected void drawAnimationMonths(Canvas canvas) {
         // do animation via translation the canvas
-        long animOffset = System.currentTimeMillis() - mAnimationArgs.startTime;
-        float translate = mAnimationArgs.interpolator.getInterpolation((float)animOffset/mAnimationArgs.duration);
-        translate *= -mAnimationArgs.direction;
+        long animOffset = System.currentTimeMillis() - mAnimationHelper.startTime;
+        float translate = mAnimationHelper.interpolator.getInterpolation((float)animOffset/ mAnimationHelper.duration);
+        translate *= -mAnimationHelper.direction;
 
-        if (animOffset < mAnimationArgs.duration) {
-            if (mAnimationArgs.transition == MonthTransition.HORIZONTAL) {
+        if (animOffset < mAnimationHelper.duration) {
+            if (mAnimationHelper.transition == MonthTransition.HORIZONTAL) {
                 canvas.translate((int)(translate * mGridSize.width()), 0);
             } else {
                 canvas.translate(0, (int)(translate * mGridSize.height()));
@@ -327,97 +352,101 @@ public class CalendarView extends View {
             drawAnimationMonthsOnCanvas(canvas);
         } else {
             // set new current month
-            if (mAnimationArgs.direction > 0) {
+            if (mAnimationHelper.direction > 0) {
                 mMonthToShow = mMonthToShow.plusMonths(1);
             } else {
                 mMonthToShow = mMonthToShow.minusMonths(1);
             }
 
-            // TODO we should redraw canvas to avoid "black-blink". Currently, it's a hotfix
+            // TODO We should re-draw canvas to avoid "black-blink". Currently it's a hotfix. Cause is unknown.
             cleanAnimationBitmaps();
-            mMonthDrawArgs.area.set(mGridSize);
-            mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, 0);
-            mAnimationArgs.current = createBitmapAsGridSize();
-            createBitmapCacheForMonth(mMonthDrawArgs, mAnimationArgs.current);
-            drawAnimationMonth(canvas, mMonthDrawArgs, mAnimationArgs.current);
+            mMonthDrawHelper.area.set(mGridSize);
+            mMonthDrawHelper.month = getMonthDescriptor(mMonthToShow, 0);
+            mAnimationHelper.current = createBitmapCacheAsGridSize();
+            createBitmapCacheForMonth(mMonthDrawHelper, mAnimationHelper.current);
+            drawAnimationMonth(canvas, mMonthDrawHelper, mAnimationHelper.current);
             cleanAnimationBitmaps();
 
-            mAnimationArgs.active = false;
+            mAnimationHelper.active = false;
         }
         invalidate();
     }
 
     protected void drawAnimationMonthsOnCanvas(Canvas canvas) {
-        if (mAnimationArgs.transition == MonthTransition.HORIZONTAL) {
+        if (mAnimationHelper.transition == MonthTransition.HORIZONTAL) {
             // draw previous month
-            mMonthDrawArgs.area.left = -mGridSize.width();
-            mMonthDrawArgs.area.top = 0;
-            drawAnimationMonth(canvas, mMonthDrawArgs, mAnimationArgs.previous);
+            mMonthDrawHelper.area.left = -mGridSize.width();
+            mMonthDrawHelper.area.top = 0;
+            drawAnimationMonth(canvas, mMonthDrawHelper, mAnimationHelper.previous);
 
             // draw next month
-            mMonthDrawArgs.area.left = mGridSize.width();
-            mMonthDrawArgs.area.top = 0;
-            drawAnimationMonth(canvas, mMonthDrawArgs, mAnimationArgs.next);
+            mMonthDrawHelper.area.left = mGridSize.width();
+            mMonthDrawHelper.area.top = 0;
+            drawAnimationMonth(canvas, mMonthDrawHelper, mAnimationHelper.next);
         }
 
-        if (mAnimationArgs.transition == MonthTransition.VERTICAL) {
+        if (mAnimationHelper.transition == MonthTransition.VERTICAL) {
             // draw previous month
-            mMonthDrawArgs.area.left = 0;
-            mMonthDrawArgs.area.top = -mGridSize.height();
-            drawAnimationMonth(canvas, mMonthDrawArgs, mAnimationArgs.previous);
+            mMonthDrawHelper.area.left = 0;
+            mMonthDrawHelper.area.top = -mGridSize.height();
+            drawAnimationMonth(canvas, mMonthDrawHelper, mAnimationHelper.previous);
 
             // draw next month
-            mMonthDrawArgs.area.left = 0;
-            mMonthDrawArgs.area.top = mGridSize.height();
-            drawAnimationMonth(canvas, mMonthDrawArgs, mAnimationArgs.next);
+            mMonthDrawHelper.area.left = 0;
+            mMonthDrawHelper.area.top = mGridSize.height();
+            drawAnimationMonth(canvas, mMonthDrawHelper, mAnimationHelper.next);
         }
 
         // draw current month
-        mMonthDrawArgs.area.left = 0;
-        mMonthDrawArgs.area.top = 0;
-        drawAnimationMonth(canvas, mMonthDrawArgs, mAnimationArgs.current);
+        mMonthDrawHelper.area.left = 0;
+        mMonthDrawHelper.area.top = 0;
+        drawAnimationMonth(canvas, mMonthDrawHelper, mAnimationHelper.current);
     }
 
-    protected void drawAnimationMonth(Canvas canvas, MonthDrawArgs args, Bitmap cachedMonth) {
+    protected void drawAnimationMonth(Canvas canvas, MonthDrawHelper h, Bitmap cachedMonth) {
         canvas.drawBitmap(
                 cachedMonth,
-                args.area.left,
-                args.area.top,
-                mAnimationArgs.paint);
+                h.area.left,
+                h.area.top,
+                mAnimationHelper.paint);
     }
 
+    //endregion
+
+
+    //region Draw static months
 
     protected void drawMonths(Canvas canvas) {
         // draw current month
-        mMonthDrawArgs.area.set(0, 0, mGridSize.width(), mGridSize.height());
-        mMonthDrawArgs.month = getMonthDescriptor(mMonthToShow, 0);
-        drawMonth(canvas, mMonthDrawArgs);
+        mMonthDrawHelper.area.set(0, 0, mGridSize.width(), mGridSize.height());
+        mMonthDrawHelper.month = getMonthDescriptor(mMonthToShow, 0);
+        drawMonth(canvas, mMonthDrawHelper);
     }
 
-    protected void drawMonth(Canvas canvas, MonthDrawArgs args) {
-        for (int i = 0; i < args.month.getRowsCount(); i++) {
-            mWeekDrawArgs.area.set(
-                    args.area.left,
-                    args.area.top + i * mDayCellSize.height(),
-                    args.area.right,
-                    args.area.top + i * mDayCellSize.height() + mDayCellSize.height());
-            mWeekDrawArgs.month = args.month;
-            mWeekDrawArgs.row = i;
-            drawWeek(canvas, mWeekDrawArgs);
+    protected void drawMonth(Canvas canvas, MonthDrawHelper h) {
+        for (int i = 0; i < h.month.getRowsCount(); i++) {
+            mWeekDrawHelper.area.set(
+                    h.area.left,
+                    h.area.top + i * mDayCellSize.height(),
+                    h.area.right,
+                    h.area.top + i * mDayCellSize.height() + mDayCellSize.height());
+            mWeekDrawHelper.month = h.month;
+            mWeekDrawHelper.row = i;
+            drawWeek(canvas, mWeekDrawHelper);
         }
     }
 
-    protected void drawWeek(Canvas canvas, WeekDrawArgs args) {
-        for (int i = 0; i < args.month.getColumnsCount(); i++) {
+    protected void drawWeek(Canvas canvas, WeekDrawHelper h) {
+        for (int i = 0; i < h.month.getColumnsCount(); i++) {
             mDayDrawHelper.area.set(
-                    args.area.left + i * mDayCellSize.width(),
-                    args.area.top,
-                    args.area.left + i * mDayCellSize.width() + mDayCellSize.width(),
-                    args.area.bottom);
-            mDayDrawHelper.month = args.month;
-            mDayDrawHelper.row = args.row;
+                    h.area.left + i * mDayCellSize.width(),
+                    h.area.top,
+                    h.area.left + i * mDayCellSize.width() + mDayCellSize.width(),
+                    h.area.bottom);
+            mDayDrawHelper.month = h.month;
+            mDayDrawHelper.row = h.row;
             mDayDrawHelper.column = i;
-            mDayDrawHelper.value = mMapDayToString.get(args.month.getDayAt(args.row, mDayDrawHelper.column));
+            mDayDrawHelper.value = mMapDayToString.get(h.month.getDayAt(h.row, mDayDrawHelper.column));
             drawDay(canvas, mDayDrawHelper);
         }
     }
@@ -481,9 +510,10 @@ public class CalendarView extends View {
         drawableToBitmap(h.cellDrawInfo.drawable, h.background);
     }
 
+    //endregion
 
-    // ============================================
 
+    //region Touch disptacher
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
@@ -524,9 +554,10 @@ public class CalendarView extends View {
         }
     }
 
+    //endregion
 
-    // ============================================
 
+    //region Utils
 
     protected MonthDescriptor getMonthDescriptor(LocalDate month, int monthOffset) {
         if (monthOffset == 0) {
@@ -536,28 +567,16 @@ public class CalendarView extends View {
         }
     }
 
-    protected LocalDate getDateForCoordinates(float x, float y) {
-        Cell cell = getCellForCoordinates(x, y);
-        return new MonthDescriptor(mMonthToShow.getYear(), mMonthToShow.getMonthOfYear() - 1, mFirstDayOfWeek)
-                .getLocalDate(cell.row, cell.column);
-    }
-
     protected Cell getCellForCoordinates(float x, float y) {
         return new Cell(
                 (int) y / mDayCellSize.height(),
                 (int) x / mDayCellSize.width());
     }
 
-    protected void drawableToBitmap(Drawable drawable, Bitmap target) {
-        Canvas canvas = new Canvas(target);
-        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
-        drawable.draw(canvas);
-    }
-
-    protected int getTextColorForState(ColorStateList list, int[] states) {
-        return list.getColorForState(
-                states,
-                list.getDefaultColor());
+    protected LocalDate getDateForCoordinates(float x, float y) {
+        Cell cell = getCellForCoordinates(x, y);
+        return new MonthDescriptor(mMonthToShow.getYear(), mMonthToShow.getMonthOfYear() - 1, mFirstDayOfWeek)
+                .getLocalDate(cell.row, cell.column);
     }
 
     protected int[] getStatesAsSet(boolean isPressed, boolean isSelected, boolean isEnabled) {
@@ -580,5 +599,19 @@ public class CalendarView extends View {
 
         return r;
     }
+
+    protected int getTextColorForState(ColorStateList list, int[] states) {
+        return list.getColorForState(
+                states,
+                list.getDefaultColor());
+    }
+
+    protected void drawableToBitmap(Drawable drawable, Bitmap target) {
+        Canvas canvas = new Canvas(target);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+    }
+
+    //endregion
 
 }
