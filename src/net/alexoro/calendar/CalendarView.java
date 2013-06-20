@@ -462,7 +462,7 @@ public class CalendarView extends View {
                 mDayCellSize.height(),
                 Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
-        drawable.setBounds(1, 1, canvas.getWidth() - 1, canvas.getHeight() - 1); // TODO remove 1 and -1 later
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
         drawable.draw(canvas);
 
         return bitmap;
