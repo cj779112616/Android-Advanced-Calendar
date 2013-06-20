@@ -38,7 +38,6 @@ public class CalendarView extends View {
 
     private static final int DAYS_IN_WEEK = 7;  // columns
     private static final int WEEKS_TO_SHOW = 6; // rows
-    private static final int NUMBER_OF_SUPPORTED_COLOR_STATES = 3;
     private static final int ACTION_MASK = 255; // MotionEvent.ACTION_MASK was introduce only in API #5
 
     static class MonthDrawArgs {
@@ -61,7 +60,6 @@ public class CalendarView extends View {
 
         public CellDrawInfo cellDrawInfo;
         public DayType dayType;
-        public int[] textColorStates;
 
         public float textSize;
         public int textColor;
@@ -95,8 +93,6 @@ public class CalendarView extends View {
         public float textSize;
         public StateListDrawable drawable;
         public ColorStateList textColor;
-        public Bitmap defaultBackgroundBitmap;
-        public Bitmap pressedBackgroundBitmap;
     }
 
 
@@ -168,7 +164,6 @@ public class CalendarView extends View {
         mDayDrawHelper.month = mMonthDrawArgs.month;
         mDayDrawHelper.row = -1;
         mDayDrawHelper.column = -1;
-        mDayDrawHelper.textColorStates = new int[NUMBER_OF_SUPPORTED_COLOR_STATES];
         mDayDrawHelper.cellBackgroundPaint = new Paint();
         mDayDrawHelper.cellTextPaint = new Paint();
 
@@ -295,8 +290,13 @@ public class CalendarView extends View {
         mGridSize.top = 0;
         mGridSize.bottom = mDayCellSize.height() * WEEKS_TO_SHOW;
 
-        // create cache for background drawables
-        createBackgroundDrawablesCache();
+        // create a temp bitmap
+        if (mDayDrawHelper.background != null) {
+            mDayDrawHelper.background.recycle();
+            mDayDrawHelper.background = null;
+        }
+        mDayDrawHelper.background = Bitmap.createBitmap(
+                mDayCellSize.width(), mDayCellSize.height(), Bitmap.Config.ARGB_8888);
 
         setMeasuredDimension(mGridSize.width(), mGridSize.height());
     }
@@ -473,18 +473,12 @@ public class CalendarView extends View {
                 break;
         }
 
-        h.textColorStates[0] = isPressed  ? android.R.attr.state_pressed  : 0;
-        h.textColorStates[1] = isSelected ? android.R.attr.state_selected : 0;
-        h.textColorStates[2] = isEnabled  ? android.R.attr.state_enabled  : 0;
-        h.textColor = getTextColorForState(h.cellDrawInfo.textColor, h.textColorStates);
+        int[] states = getStatesAsSet(isPressed, isSelected, isEnabled);
 
-        if (isPressed) {
-            h.textSize = h.cellDrawInfo.textSize;
-            h.background = h.cellDrawInfo.pressedBackgroundBitmap;
-        } else {
-            h.textSize = h.cellDrawInfo.textSize;
-            h.background = h.cellDrawInfo.defaultBackgroundBitmap;
-        }
+        h.textSize = h.cellDrawInfo.textSize;
+        h.textColor = getTextColorForState(h.cellDrawInfo.textColor, states);
+        h.cellDrawInfo.drawable.setState(states);
+        drawableToBitmap(h.cellDrawInfo.drawable, h.background);
     }
 
 
@@ -554,45 +548,37 @@ public class CalendarView extends View {
                 (int) x / mDayCellSize.width());
     }
 
-    protected Bitmap drawableToBitmap(Drawable drawable) {
-        if (drawable instanceof BitmapDrawable) {
-            return ((BitmapDrawable)drawable).getBitmap();
-        }
-
-        Bitmap bitmap = Bitmap.createBitmap(
-                mDayCellSize.width(),
-                mDayCellSize.height(),
-                Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
+    protected void drawableToBitmap(Drawable drawable, Bitmap target) {
+        Canvas canvas = new Canvas(target);
         drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
         drawable.draw(canvas);
-
-        return bitmap;
-    }
-
-    //TODO implement it via cache Map<int[], Bitmap> with lazy instantiate
-    //NOTICE int[] can not be used as map key
-    protected void createBackgroundDrawablesCache() {
-        mThisMonthCellInfo.drawable.setState(new int[] {});
-        mThisMonthCellInfo.defaultBackgroundBitmap = drawableToBitmap(mThisMonthCellInfo.drawable);
-        mThisMonthCellInfo.drawable.setState(new int[] {android.R.attr.state_pressed});
-        mThisMonthCellInfo.pressedBackgroundBitmap = drawableToBitmap(mThisMonthCellInfo.drawable);
-
-        mNeighbourMonthCellInfo.drawable.setState(new int[] {});
-        mNeighbourMonthCellInfo.defaultBackgroundBitmap = drawableToBitmap(mNeighbourMonthCellInfo.drawable);
-        mNeighbourMonthCellInfo.drawable.setState(new int[] {android.R.attr.state_pressed});
-        mNeighbourMonthCellInfo.pressedBackgroundBitmap = drawableToBitmap(mNeighbourMonthCellInfo.drawable);
-
-        mTodayCellInfo.drawable.setState(new int[] {});
-        mTodayCellInfo.defaultBackgroundBitmap = drawableToBitmap(mTodayCellInfo.drawable);
-        mTodayCellInfo.drawable.setState(new int[] {android.R.attr.state_pressed});
-        mTodayCellInfo.pressedBackgroundBitmap = drawableToBitmap(mTodayCellInfo.drawable);
     }
 
     protected int getTextColorForState(ColorStateList list, int[] states) {
         return list.getColorForState(
                 states,
                 list.getDefaultColor());
+    }
+
+    protected int[] getStatesAsSet(boolean isPressed, boolean isSelected, boolean isEnabled) {
+        int size = 0;
+        if (isPressed) size++;
+        if (isSelected) size++;
+        if (isEnabled) size++;
+        int[] r = new int[size];
+        int offset = 0;
+
+        if (isPressed) {
+            r[offset++] = android.R.attr.state_pressed;
+        }
+        if (isSelected) {
+            r[offset++] = android.R.attr.state_selected;
+        }
+        if (isEnabled) {
+            r[offset] = android.R.attr.state_enabled;
+        }
+
+        return r;
     }
 
 }
