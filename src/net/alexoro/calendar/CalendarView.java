@@ -59,6 +59,7 @@ public class CalendarView extends View {
         public String value;
 
         public CellDrawInfo cellDrawInfo;
+        public DayType dayType;
         public int[] textColorStates;
 
         public float textSize;
@@ -68,6 +69,12 @@ public class CalendarView extends View {
         public Paint cellBackgroundPaint;
         public Paint cellTextPaint;
         public float measuredTextWidth;
+    }
+
+    static enum DayType {
+        TODAY,
+        THIS_MONTH,
+        NEIGHBOUR_MONTH
     }
 
     static class AnimationArgs {
@@ -169,8 +176,15 @@ public class CalendarView extends View {
         mThisMonthCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_this_month);
         mThisMonthCellInfo.textColor = getResources().getColorStateList(R.color.nac__this_month);
 
-        mNeighbourMonthCellInfo = mThisMonthCellInfo;
-        mTodayCellInfo = mThisMonthCellInfo;
+        mNeighbourMonthCellInfo = new CellDrawInfo();
+        mNeighbourMonthCellInfo.textSize = 14f;
+        mNeighbourMonthCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_neighbour_month);
+        mNeighbourMonthCellInfo.textColor = getResources().getColorStateList(R.color.nac__neighbour_month);
+
+        mTodayCellInfo = new CellDrawInfo();
+        mTodayCellInfo.textSize = 14f;
+        mTodayCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_today);
+        mTodayCellInfo.textColor = getResources().getColorStateList(R.color.nac__today);
     }
 
     public void setMonthTransition(MonthTransition transition) {
@@ -254,6 +268,8 @@ public class CalendarView extends View {
         drawMonths(canvas);
     }
 
+    // TODO maybe, just create image of calendar and apply animation
+    // it will help to avoid redraw on each animation iteration
     protected void executeTranslateAnimation(Canvas canvas) {
         // do animation via translation the canvas
         long animOffset = System.currentTimeMillis() - mAnimationArgs.startTime;
@@ -358,22 +374,38 @@ public class CalendarView extends View {
     }
 
     protected void dispatchCellInfo(DayDrawHelper h) {
-        boolean isThisMonthCell = false;
-        boolean isNeighbourMonthCell = false;
-        boolean isTodayCell = false;
         boolean isPressed  = false;
         boolean isSelected = false;
         boolean isEnabled  = false;
+
+        if (h.month.isEqualWithDate(h.row, h.column, mToday)) {
+            h.dayType = DayType.TODAY;
+        } else if (h.month.isWithinCurrentMonth(h.row, h.column)) {
+            h.dayType = DayType.THIS_MONTH;
+        } else {
+            h.dayType = DayType.NEIGHBOUR_MONTH;
+        }
 
         if (mDayDrawHelper.row == mCurrentlyPressedCell.row
                 && mDayDrawHelper.column == mCurrentlyPressedCell.column) {
             isPressed = true;
         }
 
+        switch (h.dayType) {
+            case TODAY:
+                h.cellDrawInfo = mTodayCellInfo;
+                break;
+            case THIS_MONTH:
+                h.cellDrawInfo = mThisMonthCellInfo;
+                break;
+            case NEIGHBOUR_MONTH:
+                h.cellDrawInfo = mNeighbourMonthCellInfo;
+                break;
+        }
+
         h.textColorStates[0] = isPressed  ? android.R.attr.state_pressed  : 0;
         h.textColorStates[1] = isSelected ? android.R.attr.state_selected : 0;
         h.textColorStates[2] = isEnabled  ? android.R.attr.state_enabled  : 0;
-        h.cellDrawInfo = mThisMonthCellInfo;
         h.textColor = getTextColorForState(h.cellDrawInfo.textColor, h.textColorStates);
 
         if (isPressed) {
@@ -468,11 +500,23 @@ public class CalendarView extends View {
         return bitmap;
     }
 
+    //TODO implement it via cache Map<int[], Bitmap> with lazy instantiate
+    //NOTICE int[] can not be used as map key
     protected void createBackgroundDrawablesCache() {
         mThisMonthCellInfo.drawable.setState(new int[] {});
         mThisMonthCellInfo.defaultBackgroundBitmap = drawableToBitmap(mThisMonthCellInfo.drawable);
         mThisMonthCellInfo.drawable.setState(new int[] {android.R.attr.state_pressed});
         mThisMonthCellInfo.pressedBackgroundBitmap = drawableToBitmap(mThisMonthCellInfo.drawable);
+
+        mNeighbourMonthCellInfo.drawable.setState(new int[] {});
+        mNeighbourMonthCellInfo.defaultBackgroundBitmap = drawableToBitmap(mNeighbourMonthCellInfo.drawable);
+        mNeighbourMonthCellInfo.drawable.setState(new int[] {android.R.attr.state_pressed});
+        mNeighbourMonthCellInfo.pressedBackgroundBitmap = drawableToBitmap(mNeighbourMonthCellInfo.drawable);
+
+        mTodayCellInfo.drawable.setState(new int[] {});
+        mTodayCellInfo.defaultBackgroundBitmap = drawableToBitmap(mTodayCellInfo.drawable);
+        mTodayCellInfo.drawable.setState(new int[] {android.R.attr.state_pressed});
+        mTodayCellInfo.pressedBackgroundBitmap = drawableToBitmap(mTodayCellInfo.drawable);
     }
 
     protected int getTextColorForState(ColorStateList list, int[] states) {
