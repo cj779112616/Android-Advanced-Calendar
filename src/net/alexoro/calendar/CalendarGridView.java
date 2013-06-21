@@ -288,9 +288,6 @@ public class CalendarGridView extends View {
 
     protected void setupAnimation(int direction) {
         mAnimationHelper.active = true;
-        mAnimationHelper.startTime = System.currentTimeMillis();
-        mAnimationHelper.direction = direction;
-        mAnimationHelper.transition = mMonthTransition;
 
         mMonthDrawHelper.area.set(mGridSize);
         mMonthDrawHelper.month = getMonthDescriptor(mMonthToShow, -1);
@@ -306,6 +303,10 @@ public class CalendarGridView extends View {
         mMonthDrawHelper.month = getMonthDescriptor(mMonthToShow, 1);
         mAnimationHelper.next = createBitmapCacheAsGridSize();
         createBitmapCacheForMonth(mMonthDrawHelper, mAnimationHelper.next);
+
+        mAnimationHelper.startTime = System.currentTimeMillis();
+        mAnimationHelper.direction = direction;
+        mAnimationHelper.transition = mMonthTransition;
     }
 
     protected void cleanAnimationBitmaps() {
