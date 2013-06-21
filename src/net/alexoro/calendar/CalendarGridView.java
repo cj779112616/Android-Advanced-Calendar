@@ -108,6 +108,7 @@ public class CalendarGridView extends View {
     private CellDrawInfo mThisMonthCellInfo;
     private CellDrawInfo mNeighbourMonthCellInfo;
     private CellDrawInfo mTodayCellInfo;
+    private int mCellSpacing;
 
 
     //region Construction
@@ -181,6 +182,8 @@ public class CalendarGridView extends View {
         mTodayCellInfo.textSize = 14f;
         mTodayCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_today);
         mTodayCellInfo.textColor = getResources().getColorStateList(R.color.nac__today);
+
+        mCellSpacing = 2;
     }
 
     //endregion
@@ -338,9 +341,9 @@ public class CalendarGridView extends View {
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         // calculate size
         mGridSize.left = 0;
-        mGridSize.right = mDayCellSize.width()*DAYS_IN_WEEK;
+        mGridSize.right = mDayCellSize.width() * DAYS_IN_WEEK + mCellSpacing * (DAYS_IN_WEEK - 1);
         mGridSize.top = 0;
-        mGridSize.bottom = mDayCellSize.height() * WEEKS_TO_SHOW;
+        mGridSize.bottom = mDayCellSize.height() * WEEKS_TO_SHOW + mCellSpacing * (WEEKS_TO_SHOW - 1);
 
         // create a temp bitmap
         if (mDayDrawHelper.background != null) {
@@ -459,9 +462,9 @@ public class CalendarGridView extends View {
         for (int i = 0; i < h.month.getRowsCount(); i++) {
             mWeekDrawHelper.area.set(
                     h.area.left,
-                    h.area.top + i * mDayCellSize.height(),
+                    h.area.top + i * mDayCellSize.height() + i * mCellSpacing,
                     h.area.right,
-                    h.area.top + i * mDayCellSize.height() + mDayCellSize.height());
+                    h.area.top + i * mDayCellSize.height() + i * mCellSpacing + mDayCellSize.height());
             mWeekDrawHelper.month = h.month;
             mWeekDrawHelper.row = i;
             drawWeek(canvas, mWeekDrawHelper);
@@ -471,9 +474,9 @@ public class CalendarGridView extends View {
     protected void drawWeek(Canvas canvas, WeekDrawHelper h) {
         for (int i = 0; i < h.month.getColumnsCount(); i++) {
             mDayDrawHelper.area.set(
-                    h.area.left + i * mDayCellSize.width(),
+                    h.area.left + i * mDayCellSize.width() + i * mCellSpacing,
                     h.area.top,
-                    h.area.left + i * mDayCellSize.width() + mDayCellSize.width(),
+                    h.area.left + i * mDayCellSize.width() + i * mCellSpacing + mDayCellSize.width(),
                     h.area.bottom);
             mDayDrawHelper.month = h.month;
             mDayDrawHelper.row = h.row;

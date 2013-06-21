@@ -1,31 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_enabled="false">
-        <inset android:insetLeft="1dp" android:insetTop="1dp" android:insetRight="1dp" android:insetBottom="1dp">
-            <shape>
-                <solid android:color="#000" />
-            </shape>
-        </inset>
+        <shape>
+            <solid android:color="#000" />
+        </shape>
     </item>
     <item android:state_selected="true">
-        <inset android:insetLeft="1dp" android:insetTop="1dp" android:insetRight="1dp" android:insetBottom="1dp">
-            <shape>
-                <solid android:color="#888" />
-            </shape>
-        </inset>
+        <shape>
+            <solid android:color="#888" />
+        </shape>
     </item>
     <item android:state_pressed="true">
-        <inset android:insetLeft="1dp" android:insetTop="1dp" android:insetRight="1dp" android:insetBottom="1dp">
-            <shape>
-                <solid android:color="#fff" />
-            </shape>
-        </inset>
+        <shape>
+            <solid android:color="#fff" />
+        </shape>
     </item>
     <item>
-        <inset android:insetLeft="1dp" android:insetTop="1dp" android:insetRight="1dp" android:insetBottom="1dp">
-            <shape>
-                <solid android:color="#333" />
-            </shape>
-        </inset>
+        <shape>
+            <solid android:color="#333" />
+        </shape>
     </item>
 </selector>
