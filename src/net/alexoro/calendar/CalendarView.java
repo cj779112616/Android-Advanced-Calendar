@@ -1,10 +1,8 @@
 package net.alexoro.calendar;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
-import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -24,11 +22,7 @@ public class CalendarView extends LinearLayout {
     }
 
     public CalendarView(Context context, AttributeSet attrs) {
-        this(context, attrs, -1);
-    }
-
-    public CalendarView(Context context, AttributeSet attrs, int defStyle) {
-        super(context, attrs, defStyle);
+        super(context, attrs);
         setOrientation(VERTICAL);
 
         LayoutInflater mInflater = LayoutInflater.from(getContext());
