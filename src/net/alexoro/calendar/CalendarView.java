@@ -495,9 +495,9 @@ public class CalendarView extends View {
     }
 
     protected void dispatchCellInfo(DayDrawHelper h) {
-        boolean isPressed  = false;
-        boolean isSelected = false;
         boolean isEnabled  = false;
+        boolean isSelected = false;
+        boolean isPressed  = false;
 
         if (h.month.compareToDate(h.row, h.column, mToday) == 0) {
             h.dayType = DayType.TODAY;
@@ -507,8 +507,10 @@ public class CalendarView extends View {
             h.dayType = DayType.NEIGHBOUR_MONTH;
         }
 
-        if (mDayDrawHelper.row == mCurrentlyPressedCell.row
-                && mDayDrawHelper.column == mCurrentlyPressedCell.column) {
+        if (isDayEnabled(h.month, h.row, h.column)) {
+            isEnabled = true;
+        }
+        if (isDayPressed(h.row, h.column)) {
             isPressed = true;
         }
 
@@ -524,7 +526,7 @@ public class CalendarView extends View {
                 break;
         }
 
-        int[] states = getStatesAsSet(isPressed, isSelected, isEnabled);
+        int[] states = getStatesAsSet(isEnabled, isSelected, isPressed);
 
         h.textSize = h.cellDrawInfo.textSize;
         h.textColor = getTextColorForState(h.cellDrawInfo.textColor, states);
@@ -550,7 +552,8 @@ public class CalendarView extends View {
             case MotionEvent.ACTION_UP:
                 if (System.currentTimeMillis() - mTouchEventStartTime < (long) ViewConfiguration.getLongPressTimeout()) {
                     mTouchEventStartTime = -1;
-                    onClick(getDateForCoordinates(event.getX(), event.getY()));
+                    onClick(getCellForCoordinates(event.getX(), event.getY()),
+                            getDateForCoordinates(event.getX(), event.getY()));
                 }
                 onCellPressed(null);
                 return true;
@@ -570,8 +573,9 @@ public class CalendarView extends View {
         invalidate();
     }
 
-    protected void onClick(LocalDate date) {
-        if (mOnDateClickListener != null) {
+    protected void onClick(Cell cell, LocalDate date) {
+        MonthDescriptor md = getMonthDescriptor(mMonthToShow, 0);
+        if (mOnDateClickListener != null && isDayEnabled(md, cell.row, cell.column)) {
             mOnDateClickListener.onClick(date);
         }
     }
@@ -589,6 +593,20 @@ public class CalendarView extends View {
         }
     }
 
+    protected boolean isDayPressed(int row, int column) {
+        return row == mCurrentlyPressedCell.row
+                && column == mCurrentlyPressedCell.column;
+    }
+
+    protected boolean isDayEnabled(MonthDescriptor md, int row, int column) {
+        if (mEnabledRange == null) {
+            return true;
+        } else {
+            return md.compareToDate(row, column, mEnabledRange.first) >= 0
+                    && md.compareToDate(row, column, mEnabledRange.second) <= 0;
+        }
+    }
+
     protected Cell getCellForCoordinates(float x, float y) {
         return new Cell(
                 (int) y / mDayCellSize.height(),
@@ -601,7 +619,7 @@ public class CalendarView extends View {
                 .getLocalDate(cell.row, cell.column);
     }
 
-    protected int[] getStatesAsSet(boolean isPressed, boolean isSelected, boolean isEnabled) {
+    protected int[] getStatesAsSet(boolean isEnabled, boolean isSelected, boolean isPressed) {
         int size = 0;
         if (isPressed) size++;
         if (isSelected) size++;

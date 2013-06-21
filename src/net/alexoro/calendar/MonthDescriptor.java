@@ -67,8 +67,8 @@ class MonthDescriptor extends MonthDisplayHelper {
             }
         }
 
-        Integer source = date.getYear() * 10000 + date.getMonthOfYear() * 100 + date.getDayOfMonth();
-        Integer target = year * 10000 + (month + 1) * 100 + day;
+        Integer source = year * 10000 + (month + 1) * 100 + day;
+        Integer target = date.getYear() * 10000 + date.getMonthOfYear() * 100 + date.getDayOfMonth();
         return source.compareTo(target);
     }
 
