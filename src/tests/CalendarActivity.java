@@ -20,7 +20,7 @@ public class CalendarActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.tests_calendar);
+        setContentView(R.layout.tests_calendar_grid);
 
         mVCalendarGridView = (CalendarGridView) findViewById(R.id.calendar);
         mVCalendarGridView.setMonthTransition(CalendarGridView.MonthTransition.HORIZONTAL);
