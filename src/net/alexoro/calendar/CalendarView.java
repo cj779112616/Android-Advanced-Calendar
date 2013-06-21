@@ -6,6 +6,7 @@ import android.graphics.*;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.StateListDrawable;
 import android.util.AttributeSet;
+import android.util.Pair;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -102,6 +103,7 @@ public class CalendarView extends View {
     private int mFirstDayOfWeek;
     private LocalDate mToday;
     private LocalDate mMonthToShow;
+    private Pair<LocalDate, LocalDate> mEnabledRange;
 
     private MonthDrawHelper mMonthDrawHelper;
     private WeekDrawHelper mWeekDrawHelper;
@@ -210,6 +212,26 @@ public class CalendarView extends View {
 
     public void setOnDateClickListener(OnDateClickListener onDateClickListener) {
         mOnDateClickListener = onDateClickListener;
+    }
+
+    public void setEnabledRange(LocalDate startIncluding, LocalDate endIncluding) {
+        mEnabledRange = new Pair<LocalDate, LocalDate>(
+                new LocalDate(startIncluding),
+                new LocalDate(endIncluding));
+    }
+
+    public LocalDate getEnabledRangeStart() {
+        if (mEnabledRange != null) {
+            return mEnabledRange.first;
+        }
+        return null;
+    }
+
+    public LocalDate getEnabledRangeEnd() {
+        if (mEnabledRange != null) {
+            return mEnabledRange.second;
+        }
+        return null;
     }
 
     //endregion
@@ -477,7 +499,7 @@ public class CalendarView extends View {
         boolean isSelected = false;
         boolean isEnabled  = false;
 
-        if (h.month.isEqualWithDate(h.row, h.column, mToday)) {
+        if (h.month.compareToDate(h.row, h.column, mToday) == 0) {
             h.dayType = DayType.TODAY;
         } else if (h.month.isWithinCurrentMonth(h.row, h.column)) {
             h.dayType = DayType.THIS_MONTH;
@@ -513,7 +535,7 @@ public class CalendarView extends View {
     //endregion
 
 
-    //region Touch disptacher
+    //region Touch dispatcher
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {

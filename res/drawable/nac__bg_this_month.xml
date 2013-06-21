@@ -7,6 +7,14 @@
             </shape>
         </inset>
     </item>
+    <!--
+    <item android:state_enabled="false">
+        <inset android:insetLeft="1dp" android:insetTop="1dp" android:insetRight="1dp" android:insetBottom="1dp">
+            <shape>
+                <solid android:color="#f00" />
+            </shape>
+        </inset>
+    </item>-->
     <item>
         <inset android:insetLeft="1dp" android:insetTop="1dp" android:insetRight="1dp" android:insetBottom="1dp">
             <shape>

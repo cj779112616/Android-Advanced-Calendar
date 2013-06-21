@@ -46,29 +46,30 @@ class MonthDescriptor extends MonthDisplayHelper {
         return r;
     }
 
-    public boolean isEqualWithDate(int row, int column, LocalDate date) {
-        boolean r;
+
+    //TODO bad code
+    public int compareToDate(int row, int column, LocalDate date) {
+        int year = getYear();
+        int month = getMonth();
         int day = getDayAt(row, column);
-        if (isWithinCurrentMonth(row, column)) {
-            r = isEqualWithDate(getYear(), getMonth(), day, date);
-        } else {
+
+        if (!isWithinCurrentMonth(row, column)) {
             if (row < 2) {
                 previousMonth();
-                r = isEqualWithDate(getYear(), getMonth(), day, date);
+                year = getYear();
+                month = getMonth();
                 nextMonth();
             } else {
                 nextMonth();
-                r = isEqualWithDate(getYear(), getMonth(), day, date);
+                year = getYear();
+                month = getMonth();
                 previousMonth();
             }
         }
-        return r;
-    }
 
-    private boolean isEqualWithDate(int year, int month, int day, LocalDate date) {
-        return year == date.getYear()
-                && month == date.getMonthOfYear() - 1
-                && day == date.getDayOfMonth();
+        Integer source = date.getYear() * 10000 + date.getMonthOfYear() * 100 + date.getDayOfMonth();
+        Integer target = year * 10000 + (month + 1) * 100 + day;
+        return source.compareTo(target);
     }
 
 }
