@@ -3,9 +3,11 @@ package net.alexoro.calendar;
 import android.content.Context;
 import android.graphics.Color;
 import android.util.AttributeSet;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import org.joda.time.LocalDate;
 
 /**
@@ -29,13 +31,8 @@ public class CalendarView extends LinearLayout {
         super(context, attrs, defStyle);
         setOrientation(VERTICAL);
 
-        View v = new View(getContext());
-        v.setBackgroundColor(Color.GRAY);
-        v.setLayoutParams(new LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                50
-        ));
-        addView(v);
+        LayoutInflater mInflater = LayoutInflater.from(getContext());
+        mInflater.inflate(R.layout.nac__header, this, true);
 
         vGrid = new CalendarGridView(getContext());
         vGrid.setLayoutParams(new LayoutParams(
@@ -43,6 +40,17 @@ public class CalendarView extends LinearLayout {
                 ViewGroup.LayoutParams.WRAP_CONTENT
         ));
         addView(vGrid);
+
+        LinearLayout vDaysGroup = (LinearLayout) findViewById(R.id.days);
+        for (int i = 0; i < 7; i++) {
+            TextView tv = (TextView) mInflater.inflate(R.layout.nac__day, vDaysGroup, false);
+            tv.setLayoutParams(new LayoutParams(
+                    0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    1
+            ));
+            vDaysGroup.addView(tv);
+        }
     }
 
 
