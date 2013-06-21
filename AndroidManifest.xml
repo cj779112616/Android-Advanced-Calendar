@@ -5,11 +5,18 @@
     android:versionName="1.0">
 
     <application>
-        <activity android:name="tests.CalendarActivity">
+
+        <activity android:name="tests.CalendarGridActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name="tests.CalendarActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+            </intent-filter>
+        </activity>
+
     </application>
 </manifest>

@@ -13,14 +13,14 @@ import org.joda.time.LocalDate;
  * Date: 19.06.13
  * Time: 23:25
  */
-public class CalendarActivity extends Activity {
+public class CalendarGridActivity extends Activity {
 
     private CalendarGridView mVCalendarGridView;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.tests_calendar);
+        setContentView(R.layout.tests_calendar_grid);
 
         mVCalendarGridView = (CalendarGridView) findViewById(R.id.calendar);
         mVCalendarGridView.setMonthTransition(CalendarGridView.MonthTransition.HORIZONTAL);
@@ -29,7 +29,7 @@ public class CalendarActivity extends Activity {
         mVCalendarGridView.setOnDateClickListener(new CalendarGridView.OnDateClickListener() {
             @Override
             public void onClick(LocalDate date) {
-                Toast.makeText(CalendarActivity.this, date.toDate().toString(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(CalendarGridActivity.this, date.toDate().toString(), Toast.LENGTH_SHORT).show();
             }
         });
 
