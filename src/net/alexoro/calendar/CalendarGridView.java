@@ -23,7 +23,7 @@ import java.util.Map;
  * Date: 19.06.13
  * Time: 23:26
  */
-public class CalendarView extends View {
+public class CalendarGridView extends View {
 
     public enum MonthTransition {
         VERTICAL,
@@ -123,15 +123,15 @@ public class CalendarView extends View {
 
     //region Construction
 
-    public CalendarView(Context context) {
+    public CalendarGridView(Context context) {
         this(context, null);
     }
 
-    public CalendarView(Context context, AttributeSet attrs) {
+    public CalendarGridView(Context context, AttributeSet attrs) {
         this(context, attrs, -1);
     }
 
-    public CalendarView(Context context, AttributeSet attrs, int defStyle) {
+    public CalendarGridView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
 
         mMapDayToString = new HashMap<Integer, String>();
