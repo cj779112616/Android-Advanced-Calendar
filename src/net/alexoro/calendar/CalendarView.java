@@ -104,6 +104,7 @@ public class CalendarView extends View {
     private LocalDate mToday;
     private LocalDate mMonthToShow;
     private Pair<LocalDate, LocalDate> mEnabledRange;
+    private Pair<LocalDate, LocalDate> mSelectedRange;
 
     private MonthDrawHelper mMonthDrawHelper;
     private WeekDrawHelper mWeekDrawHelper;
@@ -230,6 +231,26 @@ public class CalendarView extends View {
     public LocalDate getEnabledRangeEnd() {
         if (mEnabledRange != null) {
             return mEnabledRange.second;
+        }
+        return null;
+    }
+
+    public void setSelectedRange(LocalDate startIncluding, LocalDate endIncluding) {
+        mSelectedRange = new Pair<LocalDate, LocalDate>(
+                new LocalDate(startIncluding),
+                new LocalDate(endIncluding));
+    }
+
+    public LocalDate getSelectedRangeStart() {
+        if (mSelectedRange != null) {
+            return mSelectedRange.first;
+        }
+        return null;
+    }
+
+    public LocalDate getSelectedRangeEnd() {
+        if (mSelectedRange != null) {
+            return mSelectedRange.second;
         }
         return null;
     }
@@ -510,6 +531,9 @@ public class CalendarView extends View {
         if (isDayEnabled(h.month, h.row, h.column)) {
             isEnabled = true;
         }
+        if (isDaySelected(h.month, h.row, h.column)) {
+            isSelected = true;
+        }
         if (isDayPressed(h.row, h.column)) {
             isPressed = true;
         }
@@ -593,11 +617,6 @@ public class CalendarView extends View {
         }
     }
 
-    protected boolean isDayPressed(int row, int column) {
-        return row == mCurrentlyPressedCell.row
-                && column == mCurrentlyPressedCell.column;
-    }
-
     protected boolean isDayEnabled(MonthDescriptor md, int row, int column) {
         if (mEnabledRange == null) {
             return true;
@@ -605,6 +624,20 @@ public class CalendarView extends View {
             return md.compareToDate(row, column, mEnabledRange.first) >= 0
                     && md.compareToDate(row, column, mEnabledRange.second) <= 0;
         }
+    }
+
+    protected boolean isDaySelected(MonthDescriptor md, int row, int column) {
+        if (mSelectedRange == null) {
+            return true;
+        } else {
+            return md.compareToDate(row, column, mSelectedRange.first) >= 0
+                    && md.compareToDate(row, column, mSelectedRange.second) <= 0;
+        }
+    }
+
+    protected boolean isDayPressed(int row, int column) {
+        return row == mCurrentlyPressedCell.row
+                && column == mCurrentlyPressedCell.column;
     }
 
     protected Cell getCellForCoordinates(float x, float y) {

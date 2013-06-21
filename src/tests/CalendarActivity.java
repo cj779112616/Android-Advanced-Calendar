@@ -24,7 +24,8 @@ public class CalendarActivity extends Activity {
 
         vCalendarView = (CalendarView) findViewById(R.id.calendar);
         vCalendarView.setMonthTransition(CalendarView.MonthTransition.HORIZONTAL);
-        vCalendarView.setEnabledRange(new LocalDate(2013, 5, 29), new LocalDate(2013, 6, 28));
+        vCalendarView.setEnabledRange(new LocalDate(2013, 4, 10), new LocalDate(2013, 8, 20));
+        vCalendarView.setSelectedRange(new LocalDate(2013, 6, 4), new LocalDate(2013, 6, 5));
         vCalendarView.setOnDateClickListener(new CalendarView.OnDateClickListener() {
             @Override
             public void onClick(LocalDate date) {
