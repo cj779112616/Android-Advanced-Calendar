@@ -1,0 +1,101 @@
+package net.alexoro.calendar;
+
+import android.content.Context;
+import android.graphics.Color;
+import android.util.AttributeSet;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import org.joda.time.LocalDate;
+
+/**
+ * User: UAS
+ * Date: 21.06.13
+ * Time: 5:10
+ */
+public class CalendarView extends LinearLayout {
+
+    private CalendarGridView vGrid;
+
+    public CalendarView(Context context) {
+        this(context, null);
+    }
+
+    public CalendarView(Context context, AttributeSet attrs) {
+        this(context, attrs, -1);
+    }
+
+    public CalendarView(Context context, AttributeSet attrs, int defStyle) {
+        super(context, attrs, defStyle);
+        setOrientation(VERTICAL);
+
+        View v = new View(getContext());
+        v.setBackgroundColor(Color.GRAY);
+        v.setLayoutParams(new LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                50
+        ));
+        addView(v);
+
+        vGrid = new CalendarGridView(getContext());
+        vGrid.setLayoutParams(new LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+        addView(vGrid);
+    }
+
+
+    public void setMonthTransition(MonthTransition transition) {
+        vGrid.setMonthTransition(transition);
+    }
+
+    public MonthTransition getMonthTransition() {
+        return vGrid.getMonthTransition();
+    }
+
+    public OnDateClickListener getOnDateClickListener() {
+        return vGrid.getOnDateClickListener();
+    }
+
+    public void setOnDateClickListener(OnDateClickListener onDateClickListener) {
+        vGrid.setOnDateClickListener(onDateClickListener);
+    }
+
+    public void setEnabledRange(LocalDate startIncluding, LocalDate endIncluding) {
+        vGrid.setEnabledRange(startIncluding, endIncluding);
+    }
+
+    public LocalDate getEnabledRangeStart() {
+        return vGrid.getEnabledRangeStart();
+    }
+
+    public LocalDate getEnabledRangeEnd() {
+        return vGrid.getEnabledRangeEnd();
+    }
+
+    public void setSelectedRange(LocalDate startIncluding, LocalDate endIncluding) {
+        vGrid.setSelectedRange(startIncluding, endIncluding);
+    }
+
+    public LocalDate getSelectedRangeStart() {
+        return vGrid.getSelectedRangeStart();
+    }
+
+    public LocalDate getSelectedRangeEnd() {
+        return vGrid.getSelectedRangeEnd();
+    }
+
+    public void nextMonth() {
+        vGrid.nextMonth();
+    }
+
+    public void previousMonth() {
+        vGrid.previousMonth();
+    }
+
+    public void show(LocalDate month) {
+        vGrid.show(month);
+    }
+
+}
