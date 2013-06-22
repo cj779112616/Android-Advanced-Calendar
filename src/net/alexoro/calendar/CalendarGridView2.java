@@ -349,10 +349,11 @@ public class CalendarGridView2 extends View {
         translate *= -mAnimationHelper.direction;
 
         if (animOffset < mAnimationHelper.duration) {
+            //TODO There is a bug at the end of animation because of fake mCellSpacing
             if (mAnimationHelper.transition == MonthTransition.HORIZONTAL) {
-                canvas.translate((int)(translate * mGridSize.width()), 0);
+                canvas.translate((int)(translate * (mGridSize.width() + mCellSpacing) ), 0);
             } else {
-                canvas.translate(0, (int)(translate * mGridSize.height()));
+                canvas.translate(0, (int)(translate * (mGridSize.height() + mCellSpacing)));
             }
             drawAnimationNeighbourMonth(canvas);
             drawCurrentMonth(canvas);
@@ -381,13 +382,15 @@ public class CalendarGridView2 extends View {
     }
 
     protected void drawAnimationNeighbourMonth(Canvas canvas) {
+        //TODO There is a bug at the end of animation because of fake mCellSpacing
         if (mAnimationHelper.transition == MonthTransition.HORIZONTAL) {
-            mMonthHelper.area.left = mGridSize.width() * mAnimationHelper.direction;
+            mMonthHelper.area.left = (mGridSize.width() + mCellSpacing) * mAnimationHelper.direction;
             mMonthHelper.area.top = 0;
         }
+        //TODO There is a bug at the end of animation because of fake mCellSpacing
         if (mAnimationHelper.transition == MonthTransition.VERTICAL) {
             mMonthHelper.area.left = 0;
-            mMonthHelper.area.top = mGridSize.height() * mAnimationHelper.direction;
+            mMonthHelper.area.top = (mGridSize.height() + mCellSpacing) * mAnimationHelper.direction;
         }
         mMonthHelper.month = mAnimationHelper.month;
         drawMonth(canvas, mMonthHelper);
