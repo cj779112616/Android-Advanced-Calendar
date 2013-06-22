@@ -8,7 +8,7 @@ import org.joda.time.LocalDate;
  * Date: 20.06.13
  * Time: 15:39
  */
-class MonthDescriptor extends MonthDisplayHelper {
+public class MonthDescriptor extends MonthDisplayHelper {
 
     public MonthDescriptor(int year, int month, int weekStartDay) {
         super(year, month, weekStartDay);

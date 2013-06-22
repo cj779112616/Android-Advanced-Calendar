@@ -15,7 +15,7 @@ import org.joda.time.LocalDate;
  */
 public class CalendarView extends LinearLayout {
 
-    private CalendarGridView vGrid;
+    private CalendarGridView2 vGrid;
 
     public CalendarView(Context context) {
         this(context, null);
@@ -28,7 +28,7 @@ public class CalendarView extends LinearLayout {
         LayoutInflater mInflater = LayoutInflater.from(getContext());
         mInflater.inflate(R.layout.nac__header, this, true);
 
-        vGrid = new CalendarGridView(getContext());
+        vGrid = new CalendarGridView2(getContext());
         vGrid.setLayoutParams(new LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -49,11 +49,11 @@ public class CalendarView extends LinearLayout {
 
 
     public void setMonthTransition(MonthTransition transition) {
-        vGrid.setMonthTransition(transition);
+        //vGrid.setMonthTransition(transition);
     }
 
     public MonthTransition getMonthTransition() {
-        return vGrid.getMonthTransition();
+        return null;
     }
 
     public OnDateClickListener getOnDateClickListener() {

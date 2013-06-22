@@ -1,0 +1,556 @@
+package net.alexoro.calendar;
+
+import android.content.Context;
+import android.content.res.ColorStateList;
+import android.graphics.*;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.StateListDrawable;
+import android.util.AttributeSet;
+import android.util.Pair;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewConfiguration;
+import org.joda.time.LocalDate;
+
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * User: UAS
+ * Date: 19.06.13
+ * Time: 23:26
+ */
+public class CalendarGridView2 extends View {
+
+    private static final int WEEKS_TO_SHOW = 6; // rows
+    private static final int DAYS_IN_WEEK = 7;  // columns
+    private static final int ACTION_MASK = 255; // MotionEvent.ACTION_MASK was introduce only in API #5
+
+    static class MonthHelper {
+        /**
+         * Area to draw in
+         */
+        public Rect area;
+
+        /**
+         *  rows = week, columns = days
+         *  Size: WEEKS_TO_SHOW:DAYS_IN_WEEK
+         */
+        public DayCellDescription[][] month;
+    }
+
+    static class WeekHelper {
+        public Rect area;
+        public DayCellDescription[][] month;
+        int row;
+    }
+
+    static class DayHelper {
+        public Cell cell;
+        public Rect area;
+        public Bitmap background;
+        public Paint cellBackgroundPaint;
+        public Paint cellTextPaint;
+        public float measuredTextWidth;
+    }
+
+    private Rect mGridSize;
+    private Rect mDayCellSize;
+
+    private int mFirstDayOfWeek;
+    private LocalDate mToday;
+    private LocalDate mMonthToShow;
+    private Pair<LocalDate, LocalDate> mEnabledRange;
+    private Pair<LocalDate, LocalDate> mSelectedRange;
+
+    private MonthDescriptor mCurrentMonthDescriptor;
+    private DayCellDescription[][] mCurrentMonth;
+
+    private MonthHelper mMonthHelper;
+    private WeekHelper mWeekHelper;
+    private DayHelper mDayHelper;
+
+    private Map<Integer, String> mMapDayToString;
+    private long mTouchEventStartTime;
+    private Cell mCurrentlyPressedCell;
+    private OnDateClickListener mOnDateClickListener;
+
+    private DayCellDescription.DayStyle mTodayCellInfo;
+    private DayCellDescription.DayStyle mThisMonthCellInfo;
+    private DayCellDescription.DayStyle mNeighbourMonthCellInfo;
+    private int mCellSpacing;
+
+
+    //region Construction
+
+    public CalendarGridView2(Context context) {
+        this(context, null);
+    }
+
+    public CalendarGridView2(Context context, AttributeSet attrs) {
+        this(context, attrs, -1);
+    }
+
+    public CalendarGridView2(Context context, AttributeSet attrs, int defStyle) {
+        super(context, attrs, defStyle);
+
+        mMapDayToString = new HashMap<Integer, String>();
+        for (int i = 1; i <= 31; i++) {
+            mMapDayToString.put(i, String.valueOf(i));
+        }
+        mTouchEventStartTime = -1;
+        mCurrentlyPressedCell = null;
+        mOnDateClickListener = null;
+
+        initWithDefaults();
+    }
+
+    protected void initWithDefaults() {
+        mGridSize = new Rect();
+        mDayCellSize = new Rect(0, 0, 40, 40);
+
+        mFirstDayOfWeek = Calendar.getInstance().getFirstDayOfWeek();
+        mToday = new LocalDate();
+        mMonthToShow = new LocalDate(mToday);
+        mEnabledRange = null;
+        mSelectedRange = null;
+
+        //region Helpers init
+        mMonthHelper = new MonthHelper();
+        mMonthHelper.area = new Rect();
+        mMonthHelper.month = mCurrentMonth;
+
+        mWeekHelper = new WeekHelper();
+        mWeekHelper.area = new Rect();
+        mWeekHelper.month = mMonthHelper.month;
+        mWeekHelper.row = -1;
+
+        mDayHelper = new DayHelper();
+        mDayHelper.cell = new Cell(-1, -1);
+        mDayHelper.area = new Rect();
+        mDayHelper.background = null;
+        mDayHelper.cellBackgroundPaint = new Paint();
+        mDayHelper.cellTextPaint = new Paint();
+        mDayHelper.cellTextPaint.setAntiAlias(true);
+        mDayHelper.cellTextPaint.setStyle(Paint.Style.FILL);
+        mDayHelper.measuredTextWidth = -1f;
+        //endregion
+
+
+        //region styles from xml
+        mTodayCellInfo = new DayCellDescription.DayStyle();
+        mTodayCellInfo.name = "Today";
+        mTodayCellInfo.textSize = 14f;
+        mTodayCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_today);
+        mTodayCellInfo.textColor = getResources().getColorStateList(R.color.nac__today);
+
+        mThisMonthCellInfo = new DayCellDescription.DayStyle();
+        mThisMonthCellInfo.name = "ThisMonth";
+        mThisMonthCellInfo.textSize = 14f;
+        mThisMonthCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_this_month);
+        mThisMonthCellInfo.textColor = getResources().getColorStateList(R.color.nac__this_month);
+
+        mNeighbourMonthCellInfo = new DayCellDescription.DayStyle();
+        mNeighbourMonthCellInfo.name = "NeighbourMonth";
+        mNeighbourMonthCellInfo.textSize = 14f;
+        mNeighbourMonthCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_neighbour_month);
+        mNeighbourMonthCellInfo.textColor = getResources().getColorStateList(R.color.nac__neighbour_month);
+
+        mCellSpacing = 2;
+        //endregion
+
+        show(mMonthToShow);
+    }
+
+    //endregion
+
+
+    // region Set & Get properties
+
+    public OnDateClickListener getOnDateClickListener() {
+        return mOnDateClickListener;
+    }
+
+    public void setOnDateClickListener(OnDateClickListener onDateClickListener) {
+        mOnDateClickListener = onDateClickListener;
+    }
+
+    public void setEnabledRange(LocalDate startIncluding, LocalDate endIncluding) {
+        mEnabledRange = new Pair<LocalDate, LocalDate>(
+                new LocalDate(startIncluding),
+                new LocalDate(endIncluding));
+        updateEnabledSelectedMonthParams();
+        invalidate();
+    }
+
+    public LocalDate getEnabledRangeStart() {
+        if (mEnabledRange != null) {
+            return mEnabledRange.first;
+        }
+        return null;
+    }
+
+    public LocalDate getEnabledRangeEnd() {
+        if (mEnabledRange != null) {
+            return mEnabledRange.second;
+        }
+        return null;
+    }
+
+    public void setSelectedRange(LocalDate startIncluding, LocalDate endIncluding) {
+        mSelectedRange = new Pair<LocalDate, LocalDate>(
+                new LocalDate(startIncluding),
+                new LocalDate(endIncluding));
+        updateEnabledSelectedMonthParams();
+        invalidate();
+    }
+
+    public LocalDate getSelectedRangeStart() {
+        if (mSelectedRange != null) {
+            return mSelectedRange.first;
+        }
+        return null;
+    }
+
+    public LocalDate getSelectedRangeEnd() {
+        if (mSelectedRange != null) {
+            return mSelectedRange.second;
+        }
+        return null;
+    }
+
+    //endregion
+
+
+    //region Change data to show
+
+    public void nextMonth() {
+        show(mMonthToShow.plusMonths(1));
+        /*if (mAnimationHelper.active) {
+            return;
+        }
+        if (mMonthTransition == MonthTransition.NONE) {
+            mMonthToShow = mMonthToShow.plusMonths(1);
+        } else {
+            setupAnimation(1);
+        }
+        invalidate();*/
+    }
+
+    public void previousMonth() {
+        show(mMonthToShow.minusMonths(1));
+        /*if (mAnimationHelper.active) {
+            return;
+        }
+        if (mMonthTransition == MonthTransition.NONE) {
+            mMonthToShow = mMonthToShow.minusMonths(1);
+        } else {
+            setupAnimation(-1);
+        }
+        invalidate();*/
+    }
+
+    public void show(LocalDate month) {
+        mMonthToShow = new LocalDate(month);
+        mCurrentMonthDescriptor = new MonthDescriptor(mMonthToShow.getYear(),
+                mMonthToShow.getMonthOfYear() - 1, mFirstDayOfWeek);
+        mCurrentMonth = createDefaultDayCellDescriptions(mCurrentMonthDescriptor);
+        invalidate();
+    }
+
+    //endregion
+
+
+    //region View overrides
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        // calculate size
+        mGridSize.left = 0;
+        mGridSize.right = mDayCellSize.width() * DAYS_IN_WEEK + getCellSpacingFilledWidth();
+        mGridSize.top = 0;
+        mGridSize.bottom = mDayCellSize.height() * WEEKS_TO_SHOW + getCellSpacingFilledHeight();
+
+        // create a temp bitmap
+        if (mDayHelper.background != null) {
+            mDayHelper.background.recycle();
+            mDayHelper.background = null;
+        }
+        mDayHelper.background = Bitmap.createBitmap(
+                mDayCellSize.width(), mDayCellSize.height(), Bitmap.Config.ARGB_8888);
+
+        setMeasuredDimension(mGridSize.width(), mGridSize.height());
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
+        super.onDraw(canvas);
+
+        mMonthHelper.area.set(0, 0, mGridSize.width(), mGridSize.height());
+        mMonthHelper.month = mCurrentMonth;
+        drawMonth(canvas, mMonthHelper);
+    }
+
+    //endregion
+
+
+    //region Draw static months
+
+    protected void drawMonth(Canvas canvas, MonthHelper h) {
+        for (int i = 0; i < WEEKS_TO_SHOW; i++) {
+            mWeekHelper.area.set(
+                    h.area.left,
+                    h.area.top + i * mDayCellSize.height() + i * mCellSpacing,
+                    h.area.right,
+                    h.area.top + i * mDayCellSize.height() + i * mCellSpacing + mDayCellSize.height());
+            mWeekHelper.month = h.month;
+            mWeekHelper.row = i;
+            drawWeek(canvas, mWeekHelper);
+        }
+    }
+
+    protected void drawWeek(Canvas canvas, WeekHelper h) {
+        for (int i = 0; i < DAYS_IN_WEEK; i++) {
+            mDayHelper.cell.update(h.row, i);
+            mDayHelper.area.set(
+                    h.area.left + i * mDayCellSize.width() + i * mCellSpacing,
+                    h.area.top,
+                    h.area.left + i * mDayCellSize.width() + i * mCellSpacing + mDayCellSize.width(),
+                    h.area.bottom);
+            drawDay(canvas, h.month[h.row][i], mDayHelper);
+        }
+    }
+
+    protected void drawDay(Canvas canvas, DayCellDescription d, DayHelper h) {
+        // get background
+        int[] states = getStatesAsSet(
+                d.isEnabled,
+                d.isSelected,
+                d.isPressed);
+
+        d.dayStyle.drawable.setState(states);
+        drawableToBitmap(d.dayStyle.drawable, h.background);
+
+        canvas.drawBitmap(
+                h.background,
+                h.area.left,
+                h.area.top,
+                h.cellBackgroundPaint);
+
+        String value = mMapDayToString.get(d.day);
+        h.cellTextPaint.setTextSize(d.dayStyle.textSize);
+        h.cellTextPaint.setColor(getTextColorForState(d.dayStyle.textColor, states));
+        h.measuredTextWidth = h.cellBackgroundPaint.measureText(value);
+        canvas.drawText(
+                value,
+                h.area.centerX() - h.measuredTextWidth/2,
+                h.area.centerY() + d.dayStyle.textSize/2 - 2, // трик-хуик, to make it really in current. getTextBounds not helps
+                h.cellTextPaint);
+    }
+
+    //endregion
+
+
+    //region Touch dispatcher
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        switch (event.getAction() & ACTION_MASK) {
+            case MotionEvent.ACTION_DOWN:
+                mTouchEventStartTime = System.currentTimeMillis();
+                onDayCellPressed(getDayCellForCoordinates(event.getX(), event.getY()));
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                onDayCellPressed(getDayCellForCoordinates(event.getX(), event.getY()));
+                return true;
+            case MotionEvent.ACTION_UP:
+                if (System.currentTimeMillis() - mTouchEventStartTime < (long) ViewConfiguration.getLongPressTimeout()) {
+                    mTouchEventStartTime = -1;
+                    Cell cell = getDayCellForCoordinates(event.getX(), event.getY());
+                    if (cell != null) {
+                        onClick(cell);
+                    }
+                }
+                onDayCellPressed(null);
+                return true;
+            default:
+                return super.onTouchEvent(event);
+        }
+    }
+
+    protected void onDayCellPressed(Cell cell) {
+        if (mCurrentlyPressedCell != null) {
+            mCurrentMonth[mCurrentlyPressedCell.row][mCurrentlyPressedCell.column].isPressed = false;
+        }
+        if (cell == null) {
+            mCurrentlyPressedCell = null;
+        } else {
+            mCurrentlyPressedCell = cell;
+            mCurrentMonth[cell.row][cell.column].isPressed = true;
+        }
+        invalidate();
+    }
+
+    protected void onClick(Cell cell) {
+        if (mOnDateClickListener != null
+                && mCurrentMonth[cell.row][cell.column].isEnabled) {
+            mOnDateClickListener.onClick(new LocalDate(
+                    mCurrentMonth[cell.row][cell.column].year,
+                    mCurrentMonth[cell.row][cell.column].month + 1,
+                    mCurrentMonth[cell.row][cell.column].day));
+        }
+    }
+
+    //endregion
+
+
+    //region Utils
+
+    protected boolean isDayEnabled(MonthDescriptor md, int row, int column) {
+        if (mEnabledRange == null) {
+            return true;
+        } else {
+            return md.compareToDate(row, column, mEnabledRange.first) >= 0
+                    && md.compareToDate(row, column, mEnabledRange.second) <= 0;
+        }
+    }
+
+    protected boolean isDaySelected(MonthDescriptor md, int row, int column) {
+        if (mSelectedRange == null) {
+            return false;
+        } else {
+            return md.compareToDate(row, column, mSelectedRange.first) >= 0
+                    && md.compareToDate(row, column, mSelectedRange.second) <= 0;
+        }
+    }
+
+    protected boolean isDayPressed(int row, int column) {
+        if (mCurrentlyPressedCell == null) {
+            return false;
+        } else {
+            return row == mCurrentlyPressedCell.row
+                    && column == mCurrentlyPressedCell.column;
+        }
+    }
+
+    protected Cell getDayCellForCoordinates(float x, float y) {
+        if (x > mGridSize.left && x < mGridSize.right
+                && y > mGridSize.top && y < mGridSize.bottom) {
+            float cX = 0, cY = 0;
+            int row = -1, col = -1; // it will be always incremented at least ones
+
+            while (cY < y) {
+                cY += mDayCellSize.height() + mCellSpacing;
+                row++;
+            }
+            while (cX < x) {
+                cX += mDayCellSize.width() + mCellSpacing;
+                col++;
+            }
+
+            return new Cell(row, col);
+        } else {
+            return null;
+        }
+    }
+
+    protected int[] getStatesAsSet(boolean isEnabled, boolean isSelected, boolean isPressed) {
+        int size = 0;
+        if (isPressed) size++;
+        if (isSelected) size++;
+        if (isEnabled) size++;
+        int[] r = new int[size];
+        int offset = 0;
+
+        if (isPressed) {
+            r[offset++] = android.R.attr.state_pressed;
+        }
+        if (isSelected) {
+            r[offset++] = android.R.attr.state_selected;
+        }
+        if (isEnabled) {
+            r[offset] = android.R.attr.state_enabled;
+        }
+
+        return r;
+    }
+
+    protected int getTextColorForState(ColorStateList list, int[] states) {
+        return list.getColorForState(
+                states,
+                list.getDefaultColor());
+    }
+
+    protected void drawableToBitmap(Drawable drawable, Bitmap target) {
+        Canvas canvas = new Canvas(target);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+    }
+
+    //endregion
+
+    protected DayCellDescription[][] createDefaultDayCellDescriptions(MonthDescriptor mdh) {
+        DayCellDescription[][] r = new DayCellDescription[WEEKS_TO_SHOW][DAYS_IN_WEEK];
+
+        DayCellDescription c;
+        int day;
+        for (int row = 0; row < WEEKS_TO_SHOW; row++) {
+            for (int col = 0; col < DAYS_IN_WEEK; col++) {
+                day = mdh.getDayAt(row, col);
+                c = new DayCellDescription();
+                if (day < 32 && row < 2) { // it is previous month
+                    mdh.previousMonth();
+                    c.year = mdh.getYear();
+                    c.month = mdh.getMonth();
+                    c.day = day;
+                    mdh.nextMonth();
+                } else if (day > 1 && row > 4) { // it is next month
+                    mdh.nextMonth();
+                    c.year = mdh.getYear();
+                    c.month = mdh.getMonth();
+                    c.day = day;
+                    mdh.previousMonth();
+                } else { // it is this month
+                    c.year = mdh.getYear();
+                    c.month = mdh.getMonth();
+                    c.day = day;
+                }
+                c.isEnabled = isDayEnabled(mdh, row, col);
+                c.isSelected = isDaySelected(mdh, row, col);
+                c.isPressed = isDayPressed(row, col);
+
+                if (mdh.compareToDate(row, col, mToday) == 0) {
+                    c.dayStyle = mTodayCellInfo;
+                } else if (mdh.isWithinCurrentMonth(row, col)) {
+                    c.dayStyle = mThisMonthCellInfo;
+                } else {
+                    c.dayStyle = mNeighbourMonthCellInfo;
+                }
+
+                r[row][col] = c;
+            }
+        }
+
+        return r;
+    }
+
+    protected void updateEnabledSelectedMonthParams() {
+        for (int row = 0; row < WEEKS_TO_SHOW; row++) {
+            for (int col = 0; col < DAYS_IN_WEEK; col++) {
+                mCurrentMonth[row][col].isEnabled = isDayEnabled(mCurrentMonthDescriptor, row, col);
+                mCurrentMonth[row][col].isSelected = isDaySelected(mCurrentMonthDescriptor, row, col);
+                mCurrentMonth[row][col].isPressed = isDayPressed(row, col);
+            }
+        }
+    }
+
+    protected int getCellSpacingFilledWidth() {
+        return mCellSpacing * (DAYS_IN_WEEK - 1);
+    }
+
+    protected int getCellSpacingFilledHeight() {
+        return mCellSpacing * (WEEKS_TO_SHOW - 1);
+    }
+
+}
