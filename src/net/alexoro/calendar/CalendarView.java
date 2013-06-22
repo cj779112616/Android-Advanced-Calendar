@@ -48,6 +48,18 @@ public class CalendarView extends LinearLayout {
     }
 
 
+    public void setDayCellSize(int width, int height) {
+        vGrid.setDayCellSize(width, height);
+    }
+
+    public int getDayCellWidth() {
+        return vGrid.getDayCellWidth();
+    }
+
+    public int getDayCellHeight() {
+        return vGrid.getDayCellHeight();
+    }
+
     public void setMonthTransition(MonthTransition transition) {
         vGrid.setMonthTransition(transition);
     }

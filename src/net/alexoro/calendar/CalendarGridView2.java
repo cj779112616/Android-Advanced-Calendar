@@ -194,6 +194,21 @@ public class CalendarGridView2 extends View {
 
     // region Set & Get properties
 
+    public void setDayCellSize(int width, int height) {
+        // TODO Here might be a bug when this method is called during the animation
+        mDayCellSize.set(0, 0, width, height);
+        requestLayout();
+        invalidate();
+    }
+
+    public int getDayCellWidth() {
+        return mDayCellSize.width();
+    }
+
+    public int getDayCellHeight() {
+        return mDayCellSize.height();
+    }
+
     public void setMonthTransition(MonthTransition transition) {
         mMonthTransition = transition;
     }
