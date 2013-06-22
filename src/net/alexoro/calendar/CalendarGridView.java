@@ -163,7 +163,7 @@ public class CalendarGridView extends View {
 
         mAnimationHelper = new AnimationHelper();
         mAnimationHelper.interpolator = new AccelerateDecelerateInterpolator();
-        mAnimationHelper.duration = 2700;
+        mAnimationHelper.duration = 700;
         mAnimationHelper.paint = new Paint();
         mAnimationHelper.paint.setAntiAlias(true);
         mAnimationHelper.paint.setStyle(Paint.Style.FILL);
