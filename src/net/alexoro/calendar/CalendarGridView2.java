@@ -293,6 +293,9 @@ public class CalendarGridView2 extends View {
 
     //endregion
 
+
+    //region Animation
+
     protected void setupAnimation(int direction) {
         MonthDescriptor md = new MonthDescriptor(mMonthToShow.getYear(),
                 mMonthToShow.getMonthOfYear() - 1, mFirstDayOfWeek);
@@ -309,6 +312,8 @@ public class CalendarGridView2 extends View {
         mAnimationHelper.transition = mMonthTransition;
     }
 
+    //endregion
+
 
     //region View overrides
 
@@ -316,9 +321,9 @@ public class CalendarGridView2 extends View {
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         // calculate size
         mGridSize.left = 0;
-        mGridSize.right = mDayCellSize.width() * DAYS_IN_WEEK + getCellSpacingFilledWidth();
+        mGridSize.right = mDayCellSize.width() * DAYS_IN_WEEK + mCellSpacing * (DAYS_IN_WEEK - 1);
         mGridSize.top = 0;
-        mGridSize.bottom = mDayCellSize.height() * WEEKS_TO_SHOW + getCellSpacingFilledHeight();
+        mGridSize.bottom = mDayCellSize.height() * WEEKS_TO_SHOW + mCellSpacing * (WEEKS_TO_SHOW - 1);
 
         // create a temp bitmap
         if (mDayHelper.background != null) {
@@ -591,6 +596,9 @@ public class CalendarGridView2 extends View {
 
     //endregion
 
+
+    //region CellDescription generator and updater
+
     protected DayCellDescription[][] createDefaultDayCellDescriptions(MonthDescriptor mdh) {
         DayCellDescription[][] r = new DayCellDescription[WEEKS_TO_SHOW][DAYS_IN_WEEK];
 
@@ -646,12 +654,7 @@ public class CalendarGridView2 extends View {
         }
     }
 
-    protected int getCellSpacingFilledWidth() {
-        return mCellSpacing * (DAYS_IN_WEEK - 1);
-    }
+    //endregion
 
-    protected int getCellSpacingFilledHeight() {
-        return mCellSpacing * (WEEKS_TO_SHOW - 1);
-    }
 
 }
