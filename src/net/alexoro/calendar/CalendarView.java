@@ -49,11 +49,11 @@ public class CalendarView extends LinearLayout {
 
 
     public void setMonthTransition(MonthTransition transition) {
-        //vGrid.setMonthTransition(transition);
+        vGrid.setMonthTransition(transition);
     }
 
     public MonthTransition getMonthTransition() {
-        return null;
+        return vGrid.getMonthTransition();
     }
 
     public OnDateClickListener getOnDateClickListener() {
