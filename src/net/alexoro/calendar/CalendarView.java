@@ -9,6 +9,7 @@ import android.widget.TextView;
 import org.joda.time.LocalDate;
 
 import java.text.DateFormatSymbols;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
 
@@ -19,7 +20,11 @@ import java.util.Locale;
  */
 public class CalendarView extends LinearLayout {
 
+    private TextView vMonthName;
     private CalendarGridView2 vGrid;
+    private LocalDate mMonthToShow;
+    private SimpleDateFormat mMonthFormat;
+
 
     public CalendarView(Context context) {
         this(context, null);
@@ -31,6 +36,12 @@ public class CalendarView extends LinearLayout {
 
         LayoutInflater mInflater = LayoutInflater.from(getContext());
         mInflater.inflate(R.layout.nac__header, this, true);
+
+        mMonthFormat = new SimpleDateFormat("LLLL yyyy");
+        mMonthToShow = new LocalDate();
+
+        vMonthName = (TextView) findViewById(R.id.month_name);
+        updateMonthName();
 
         vGrid = new CalendarGridView2(getContext());
         vGrid.setLayoutParams(new LayoutParams(
@@ -115,14 +126,23 @@ public class CalendarView extends LinearLayout {
 
     public void nextMonth() {
         vGrid.nextMonth();
+        mMonthToShow = mMonthToShow.plusMonths(1);
+        updateMonthName();
     }
 
     public void previousMonth() {
         vGrid.previousMonth();
+        mMonthToShow = mMonthToShow.minusMonths(1);
+        updateMonthName();
     }
 
     public void show(LocalDate month) {
         vGrid.show(month);
+    }
+
+    protected void updateMonthName() {
+        vMonthName.setText(
+                mMonthFormat.format(mMonthToShow.toDate()));
     }
 
 }
