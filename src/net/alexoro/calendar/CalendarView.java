@@ -32,6 +32,7 @@ public class CalendarView extends LinearLayout {
 
     private LocalDate mMonthToShow;
     private Pair<LocalDate, LocalDate> mEnabledRange;
+    private SelectionType mSelectionType;
     private boolean mAllowMonthChangeByUi;
 
     private long mTouchEventStartTime;
@@ -49,6 +50,7 @@ public class CalendarView extends LinearLayout {
 
         mMonthToShow = new LocalDate();
         mEnabledRange = new Pair<LocalDate, LocalDate>(null, null);
+        mSelectionType = SelectionType.SINGLE;
         mTouchEventStartTime = -1L;
         mMonthFormat = new SimpleDateFormat("LLLL yyyy");
 
@@ -188,6 +190,19 @@ public class CalendarView extends LinearLayout {
             }
         }
     }
+
+
+    //region Own selections
+
+    public SelectionType getSelectionType() {
+        return mSelectionType;
+    }
+
+    public void setSelectionType(SelectionType selectionType) {
+        mSelectionType = selectionType;
+    }
+
+    //endregion
 
 
     //region Facade methods with overriding
