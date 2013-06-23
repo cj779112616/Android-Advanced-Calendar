@@ -8,6 +8,10 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import org.joda.time.LocalDate;
 
+import java.text.DateFormatSymbols;
+import java.util.Calendar;
+import java.util.Locale;
+
 /**
  * User: UAS
  * Date: 21.06.13
@@ -35,6 +39,9 @@ public class CalendarView extends LinearLayout {
         ));
         addView(vGrid);
 
+        int day = Calendar.getInstance().getFirstDayOfWeek();
+        String[] dayNames = new DateFormatSymbols(Locale.getDefault()).getShortWeekdays();
+
         LinearLayout vDaysGroup = (LinearLayout) findViewById(R.id.days);
         for (int i = 0; i < 7; i++) {
             TextView tv = (TextView) mInflater.inflate(R.layout.nac__day, vDaysGroup, false);
@@ -44,6 +51,12 @@ public class CalendarView extends LinearLayout {
                     1
             ));
             vDaysGroup.addView(tv);
+
+            if (day == 8) {
+                day = 1;
+            }
+            tv.setText(dayNames[day]);
+            day++;
         }
     }
 
