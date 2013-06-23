@@ -124,6 +124,7 @@ public class CalendarView extends LinearLayout {
                 startIncluding,
                 endIncluding);
         vGrid.setEnabledRange(startIncluding, endIncluding);
+        updateEnabledRange();
     }
 
     public LocalDate getEnabledRangeStart() {
@@ -202,7 +203,7 @@ public class CalendarView extends LinearLayout {
                 && compareByMonth(mMonthToShow.plusMonths(1), mEnabledRange.second) <= 0) {
             right = getResources().getDrawable(R.drawable.nac__arrow_right);
         }
-        vMonthName.setCompoundDrawables(left, null, right, null);
+        vMonthName.setCompoundDrawablesWithIntrinsicBounds(left, null, right, null);
     }
 
     protected int compareByMonth(LocalDate d1, LocalDate d2) {
