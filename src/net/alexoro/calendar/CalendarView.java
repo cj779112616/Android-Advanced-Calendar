@@ -1,6 +1,7 @@
 package net.alexoro.calendar;
 
 import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.util.Pair;
 import android.view.*;
@@ -28,6 +29,9 @@ public class CalendarView extends LinearLayout {
     private SimpleDateFormat mMonthFormat;
     private long mTouchEventStartTime;
 
+    private Pair<LocalDate, LocalDate> mEnabledRange;
+
+
     public CalendarView(Context context) {
         this(context, null);
     }
@@ -39,6 +43,8 @@ public class CalendarView extends LinearLayout {
         LayoutInflater mInflater = LayoutInflater.from(getContext());
         mInflater.inflate(R.layout.nac__header, this, true);
 
+        vMonthName = (TextView) findViewById(R.id.month_name);
+
         vGrid = new CalendarGridView(getContext());
         vGrid.setLayoutParams(new LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -48,9 +54,7 @@ public class CalendarView extends LinearLayout {
 
         mMonthFormat = new SimpleDateFormat("LLLL yyyy");
         mMonthToShow = new LocalDate();
-
-        vMonthName = (TextView) findViewById(R.id.month_name);
-        updateMonthName();
+        mEnabledRange = new Pair<LocalDate, LocalDate>(null, null);
 
         int day = Calendar.getInstance().getFirstDayOfWeek();
         String[] dayNames = new DateFormatSymbols(Locale.getDefault()).getShortWeekdays();
@@ -71,6 +75,9 @@ public class CalendarView extends LinearLayout {
             tv.setText(dayNames[day]);
             day++;
         }
+
+        updateMonthName();
+        updateEnabledRange();
     }
 
 
@@ -103,6 +110,9 @@ public class CalendarView extends LinearLayout {
     }
 
     public void setEnabledRange(LocalDate startIncluding, LocalDate endIncluding) {
+        mEnabledRange = new Pair<LocalDate, LocalDate>(
+                startIncluding,
+                endIncluding);
         vGrid.setEnabledRange(startIncluding, endIncluding);
     }
 
@@ -140,6 +150,8 @@ public class CalendarView extends LinearLayout {
 
     public void show(LocalDate month) {
         vGrid.show(month);
+        mMonthToShow = month;
+        updateMonthName();
     }
 
     protected void updateMonthName() {
@@ -166,11 +178,30 @@ public class CalendarView extends LinearLayout {
 
     protected void onClickXY(float x, float y) {
         int width = getWidth();
-        if (x < width/3) {
+        if (x < width/3 && mEnabledRange.first != null
+                && compareByMonth(mMonthToShow.minusMonths(1), mEnabledRange.first) >= 0) {
             previousMonth();
-        } else if (x > width*2/3) {
+        } else if (x > width*2/3 && mEnabledRange.second != null
+                && compareByMonth(mMonthToShow.plusMonths(1), mEnabledRange.second) <= 0) {
             nextMonth();
         }
+    }
+
+    protected void updateEnabledRange() {
+        Drawable left = null, right = null;
+        if (mEnabledRange.first != null) {
+            left = getResources().getDrawable(R.drawable.nac__arrow_left);
+        }
+        if (mEnabledRange.second != null) {
+            right = getResources().getDrawable(R.drawable.nac__arrow_right);
+        }
+        vMonthName.setCompoundDrawables(left, null, right, null);
+    }
+
+    protected int compareByMonth(LocalDate d1, LocalDate d2) {
+        d1 = new LocalDate(d1.getYear(), d1.getMonthOfYear(), 1);
+        d2 = new LocalDate(d2.getYear(), d2.getMonthOfYear(), 1);
+        return d1.compareTo(d2);
     }
 
 }
