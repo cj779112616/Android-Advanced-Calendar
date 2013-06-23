@@ -5,7 +5,7 @@ package net.alexoro.calendar;
  * Date: 20.06.13
  * Time: 22:55
  */
-public class Cell {
+class Cell {
 
     public int row;
     public int column;

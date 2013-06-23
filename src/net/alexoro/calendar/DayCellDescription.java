@@ -8,7 +8,7 @@ import android.graphics.drawable.StateListDrawable;
  * Date: 23.06.13
  * Time: 0:09
  */
-public class DayCellDescription {
+class DayCellDescription {
 
     public static class DayStyle {
         public String name;

@@ -23,7 +23,7 @@ import java.util.Map;
  * Date: 19.06.13
  * Time: 23:26
  */
-public class CalendarGridView extends View {
+class CalendarGridView extends View {
 
     private static final int WEEKS_TO_SHOW = 6; // rows
     private static final int DAYS_IN_WEEK = 7;  // columns
