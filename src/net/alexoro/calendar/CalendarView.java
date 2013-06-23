@@ -7,6 +7,7 @@ import android.util.Pair;
 import android.view.*;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import org.joda.time.Days;
 import org.joda.time.LocalDate;
 
 import java.text.DateFormatSymbols;
@@ -21,6 +22,7 @@ import java.util.Locale;
  */
 // TODO this class must be integrated with CalendarGridView, but I am to lazy to do it.
 // So, this is just a facade class to a grid.
+// This is a very bad code and must be refactored.
 @SuppressWarnings("UnusedDeclaration")
 public class CalendarView extends LinearLayout {
 
@@ -184,7 +186,37 @@ public class CalendarView extends LinearLayout {
     class OnDateClicked implements OnDateClickListener {
         @Override
         public void onClick(LocalDate date) {
-            setSelectedRange(date, date);
+            LocalDate startNew;
+            LocalDate endNew;
+
+            if (mSelectionType == SelectionType.SINGLE) {
+                startNew = date;
+                endNew = date;
+            } else {
+                LocalDate start = vGrid.getSelectedRangeStart();
+                LocalDate end = vGrid.getSelectedRangeEnd();
+                startNew = start;
+                endNew = end;
+
+                if (start == null || end == null) {
+                    startNew = date;
+                    endNew = date;
+                } else if (date.isAfter(end)) {
+                    endNew = date;
+                } else if (date.isBefore(start)) {
+                    startNew = date;
+                } else {
+                    int diffToStart = Math.abs(Days.daysBetween(start, date).getDays());
+                    int diffToEnd = Math.abs(Days.daysBetween(end, date).getDays());
+                    if (diffToStart < diffToEnd) {
+                        startNew = date;
+                    } else {
+                        endNew = date;
+                    }
+                }
+            }
+
+            setSelectedRange(startNew, endNew);
             if (mUserOnDateClickListener != null) {
                 mUserOnDateClickListener.onClick(date);
             }
