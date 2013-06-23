@@ -47,7 +47,9 @@ public class CalendarActivity extends Activity {
         findViewById(R.id.reset).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                vCalendarView.show(new LocalDate());
+                //vCalendarView.show(new LocalDate());
+                LocalDate ld = vCalendarView.getSelectedRangeStart();
+                debug(ld);
             }
         });
         findViewById(R.id.switcher).setOnClickListener(new View.OnClickListener() {
@@ -63,6 +65,10 @@ public class CalendarActivity extends Activity {
                 }
             }
         });
+    }
+
+    protected void debug(Object k) {
+
     }
 
 }

@@ -19,6 +19,9 @@ import java.util.Locale;
  * Date: 21.06.13
  * Time: 5:10
  */
+// TODO this class must be integrated with CalendarGridView, but I am to lazy to do it.
+// So, this is just a facade class to a grid.
+@SuppressWarnings("UnusedDeclaration")
 public class CalendarView extends LinearLayout {
 
     private static final int ACTION_MASK = 255; // MotionEvent.ACTION_MASK was introduce only in API #5
@@ -34,6 +37,7 @@ public class CalendarView extends LinearLayout {
     private long mTouchEventStartTime;
     private SimpleDateFormat mMonthFormat;
     private OnDateChangedListener mUserOnDateChangedListener;
+    private OnDateClickListener mUserOnDateClickListener;
 
 
     public CalendarView(Context context) {
@@ -47,7 +51,6 @@ public class CalendarView extends LinearLayout {
         mEnabledRange = new Pair<LocalDate, LocalDate>(null, null);
         mTouchEventStartTime = -1L;
         mMonthFormat = new SimpleDateFormat("LLLL yyyy");
-        mUserOnDateChangedListener = null;
 
         setOrientation(VERTICAL);
         initUi();
@@ -90,6 +93,7 @@ public class CalendarView extends LinearLayout {
     }
 
     protected void initUiEvents() {
+        vGrid.setOnDateClickListener(new OnDateClicked());
         vGrid.setOnDateChangedListener(new OnDateChanged());
     }
 
@@ -175,6 +179,16 @@ public class CalendarView extends LinearLayout {
         }
     }
 
+    class OnDateClicked implements OnDateClickListener {
+        @Override
+        public void onClick(LocalDate date) {
+            setSelectedRange(date, date);
+            if (mUserOnDateClickListener != null) {
+                mUserOnDateClickListener.onClick(date);
+            }
+        }
+    }
+
 
     //region Facade methods with overriding
 
@@ -188,6 +202,22 @@ public class CalendarView extends LinearLayout {
 
     public LocalDate getEnabledRangeStart() {
         return vGrid.getEnabledRangeStart();
+    }
+
+    public OnDateClickListener getOnDateClickListener() {
+        return mUserOnDateClickListener;
+    }
+
+    public void setOnDateClickListener(OnDateClickListener onDateClickListener) {
+        mUserOnDateClickListener = onDateClickListener;
+    }
+
+    public OnDateChangedListener getOnDateChangedListener() {
+        return mUserOnDateChangedListener;
+    }
+
+    public void setOnDateChangedListener(OnDateChangedListener onDateChangedListener) {
+        mUserOnDateChangedListener = onDateChangedListener;
     }
 
     //endregion
@@ -213,23 +243,6 @@ public class CalendarView extends LinearLayout {
 
     public MonthTransition getMonthTransition() {
         return vGrid.getMonthTransition();
-    }
-
-    public OnDateClickListener getOnDateClickListener() {
-        return vGrid.getOnDateClickListener();
-    }
-
-    public void setOnDateClickListener(OnDateClickListener onDateClickListener) {
-        vGrid.setOnDateClickListener(onDateClickListener);
-    }
-
-
-    public OnDateChangedListener getOnDateChangedListener() {
-        return mUserOnDateChangedListener;
-    }
-
-    public void setOnDateChangedListener(OnDateChangedListener onDateChangedListener) {
-        mUserOnDateChangedListener = onDateChangedListener;
     }
 
     public LocalDate getEnabledRangeEnd() {

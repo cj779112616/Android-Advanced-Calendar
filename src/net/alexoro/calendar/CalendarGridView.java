@@ -641,7 +641,7 @@ class CalendarGridView extends View {
             for (int col = 0; col < DAYS_IN_WEEK; col++) {
                 day = mdh.getDayAt(row, col);
                 c = new DayCellDescription();
-                if (day < 32 && row < 2) { // it is previous month
+                if (day < 32 && row < 1) { // it is previous month
                     mdh.previousMonth();
                     c.year = mdh.getYear();
                     c.month = mdh.getMonth();
