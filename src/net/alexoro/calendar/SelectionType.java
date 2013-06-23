@@ -6,6 +6,7 @@ package net.alexoro.calendar;
  * Time: 15:14
  */
 public enum SelectionType {
+    NONE,
     SINGLE,
     RANGE
 }

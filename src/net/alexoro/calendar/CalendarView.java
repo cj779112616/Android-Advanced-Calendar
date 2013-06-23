@@ -52,7 +52,7 @@ public class CalendarView extends LinearLayout {
 
         mMonthToShow = new LocalDate();
         mEnabledRange = new Pair<LocalDate, LocalDate>(null, null);
-        mSelectionType = SelectionType.SINGLE;
+        mSelectionType = SelectionType.NONE;
         mTouchEventStartTime = -1L;
         mMonthFormat = new SimpleDateFormat("LLLL yyyy");
 
@@ -189,7 +189,10 @@ public class CalendarView extends LinearLayout {
             LocalDate startNew;
             LocalDate endNew;
 
-            if (mSelectionType == SelectionType.SINGLE) {
+            if (mSelectionType == SelectionType.NONE) {
+                startNew = null;
+                endNew = null;
+            } else if (mSelectionType == SelectionType.SINGLE) {
                 startNew = date;
                 endNew = date;
             } else {

@@ -257,9 +257,14 @@ class CalendarGridView extends View {
     }
 
     public void setSelectedRange(LocalDate startIncluding, LocalDate endIncluding) {
-        mSelectedRange = new Pair<LocalDate, LocalDate>(
-                new LocalDate(startIncluding),
-                new LocalDate(endIncluding));
+        //TODO bad code
+        if (startIncluding == null && endIncluding == null) {
+            mSelectedRange = null;
+        } else {
+            mSelectedRange = new Pair<LocalDate, LocalDate>(
+                    new LocalDate(startIncluding),
+                    new LocalDate(endIncluding));
+        }
         updateEnabledSelectedMonthParams();
         invalidate();
     }
