@@ -29,6 +29,7 @@ public class CalendarView extends LinearLayout {
 
     private LocalDate mMonthToShow;
     private Pair<LocalDate, LocalDate> mEnabledRange;
+    private boolean mAllowMonthChangeByUi;
 
     private long mTouchEventStartTime;
     private SimpleDateFormat mMonthFormat;
@@ -52,6 +53,7 @@ public class CalendarView extends LinearLayout {
         initUi();
         initUiEvents();
 
+        mAllowMonthChangeByUi = true;
         updateMonthName();
         updateEnabledRange();
     }
@@ -91,17 +93,31 @@ public class CalendarView extends LinearLayout {
         vGrid.setOnDateChangedListener(new OnDateChanged());
     }
 
+    public void setAllowMonthChangeByUi(boolean state) {
+        mAllowMonthChangeByUi = state;
+        updateEnabledRange();
+    }
+
+    public boolean getAllowMonthChangeByUi() {
+        return mAllowMonthChangeByUi;
+    }
+
+
     protected void updateEnabledRange() {
-        Drawable left = null, right = null;
-        if (mEnabledRange.first != null
-                && compareByMonth(mMonthToShow.minusMonths(1), mEnabledRange.first) >= 0) {
-            left = getResources().getDrawable(R.drawable.nac__arrow_left);
+        if (mAllowMonthChangeByUi) {
+            Drawable left = null, right = null;
+            if (mEnabledRange.first != null
+                    && compareByMonth(mMonthToShow.minusMonths(1), mEnabledRange.first) >= 0) {
+                left = getResources().getDrawable(R.drawable.nac__arrow_left);
+            }
+            if (mEnabledRange.second != null
+                    && compareByMonth(mMonthToShow.plusMonths(1), mEnabledRange.second) <= 0) {
+                right = getResources().getDrawable(R.drawable.nac__arrow_right);
+            }
+            vMonthName.setCompoundDrawablesWithIntrinsicBounds(left, null, right, null);
+        } else {
+            vMonthName.setCompoundDrawablesWithIntrinsicBounds(null, null, null, null);
         }
-        if (mEnabledRange.second != null
-                && compareByMonth(mMonthToShow.plusMonths(1), mEnabledRange.second) <= 0) {
-            right = getResources().getDrawable(R.drawable.nac__arrow_right);
-        }
-        vMonthName.setCompoundDrawablesWithIntrinsicBounds(left, null, right, null);
     }
 
     protected void updateMonthName() {
@@ -128,10 +144,14 @@ public class CalendarView extends LinearLayout {
 
     protected void onClickXY(float x, float y) {
         int width = getWidth();
-        if (x < width/3 && mEnabledRange.first != null
+        if (x < width/3
+                && mAllowMonthChangeByUi
+                && mEnabledRange.first != null
                 && compareByMonth(mMonthToShow.minusMonths(1), mEnabledRange.first) >= 0) {
             previousMonth();
-        } else if (x > width*2/3 && mEnabledRange.second != null
+        } else if (x > width*2/3
+                && mAllowMonthChangeByUi
+                && mEnabledRange.second != null
                 && compareByMonth(mMonthToShow.plusMonths(1), mEnabledRange.second) <= 0) {
             nextMonth();
         }
