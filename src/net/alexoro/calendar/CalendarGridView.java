@@ -92,6 +92,7 @@ public class CalendarGridView extends View {
     private long mTouchEventStartTime;
     private Cell mCurrentlyPressedCell;
     private OnDateClickListener mOnDateClickListener;
+    private OnDateChangedListener mOnDateChangedListener;
 
     private DayCellDescription.DayStyle mTodayCellInfo;
     private DayCellDescription.DayStyle mThisMonthCellInfo;
@@ -225,6 +226,14 @@ public class CalendarGridView extends View {
         mOnDateClickListener = onDateClickListener;
     }
 
+    public OnDateChangedListener getOnDateChangedListener() {
+        return mOnDateChangedListener;
+    }
+
+    public void setOnDateChangedListener(OnDateChangedListener onDateChangedListener) {
+        mOnDateChangedListener = onDateChangedListener;
+    }
+
     public void setEnabledRange(LocalDate startIncluding, LocalDate endIncluding) {
         mEnabledRange = new Pair<LocalDate, LocalDate>(
                 new LocalDate(startIncluding),
@@ -283,6 +292,9 @@ public class CalendarGridView extends View {
         } else {
             setupAnimation(1);
             invalidate();
+            if (mOnDateChangedListener != null) {
+                mOnDateChangedListener.onChanged(mMonthToShow.plusMonths(1));
+            }
         }
     }
 
@@ -295,6 +307,9 @@ public class CalendarGridView extends View {
         } else {
             setupAnimation(-1);
             invalidate();
+            if (mOnDateChangedListener != null) {
+                mOnDateChangedListener.onChanged(mMonthToShow.minusMonths(1));
+            }
         }
     }
 
@@ -304,6 +319,9 @@ public class CalendarGridView extends View {
                 mMonthToShow.getMonthOfYear() - 1, mFirstDayOfWeek);
         mCurrentMonth = createDefaultDayCellDescriptions(mCurrentMonthDescriptor);
         invalidate();
+        if (mOnDateChangedListener != null) {
+            mOnDateChangedListener.onChanged(mMonthToShow);
+        }
     }
 
     //endregion

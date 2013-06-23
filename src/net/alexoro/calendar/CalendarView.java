@@ -30,6 +30,7 @@ public class CalendarView extends LinearLayout {
     private long mTouchEventStartTime;
 
     private Pair<LocalDate, LocalDate> mEnabledRange;
+    private OnDateChangedListener mUserOnDateChangedListener;
 
 
     public CalendarView(Context context) {
@@ -50,6 +51,7 @@ public class CalendarView extends LinearLayout {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
         ));
+        vGrid.setOnDateChangedListener(new OnDateChanged());
         addView(vGrid);
 
         mMonthFormat = new SimpleDateFormat("LLLL yyyy");
@@ -109,6 +111,14 @@ public class CalendarView extends LinearLayout {
         vGrid.setOnDateClickListener(onDateClickListener);
     }
 
+    public OnDateChangedListener getOnDateChangedListener() {
+        return mUserOnDateChangedListener;
+    }
+
+    public void setOnDateChangedListener(OnDateChangedListener onDateChangedListener) {
+        mUserOnDateChangedListener = onDateChangedListener;
+    }
+
     public void setEnabledRange(LocalDate startIncluding, LocalDate endIncluding) {
         mEnabledRange = new Pair<LocalDate, LocalDate>(
                 startIncluding,
@@ -138,20 +148,14 @@ public class CalendarView extends LinearLayout {
 
     public void nextMonth() {
         vGrid.nextMonth();
-        mMonthToShow = mMonthToShow.plusMonths(1);
-        updateMonthName();
     }
 
     public void previousMonth() {
         vGrid.previousMonth();
-        mMonthToShow = mMonthToShow.minusMonths(1);
-        updateMonthName();
     }
 
     public void show(LocalDate month) {
         vGrid.show(month);
-        mMonthToShow = month;
-        updateMonthName();
     }
 
     protected void updateMonthName() {
@@ -187,12 +191,15 @@ public class CalendarView extends LinearLayout {
         }
     }
 
+    //TODO all works but drawable is not drawn
     protected void updateEnabledRange() {
         Drawable left = null, right = null;
-        if (mEnabledRange.first != null) {
+        if (mEnabledRange.first != null
+                && compareByMonth(mMonthToShow.minusMonths(1), mEnabledRange.first) >= 0) {
             left = getResources().getDrawable(R.drawable.nac__arrow_left);
         }
-        if (mEnabledRange.second != null) {
+        if (mEnabledRange.second != null
+                && compareByMonth(mMonthToShow.plusMonths(1), mEnabledRange.second) <= 0) {
             right = getResources().getDrawable(R.drawable.nac__arrow_right);
         }
         vMonthName.setCompoundDrawables(left, null, right, null);
@@ -202,6 +209,18 @@ public class CalendarView extends LinearLayout {
         d1 = new LocalDate(d1.getYear(), d1.getMonthOfYear(), 1);
         d2 = new LocalDate(d2.getYear(), d2.getMonthOfYear(), 1);
         return d1.compareTo(d2);
+    }
+
+    class OnDateChanged implements OnDateChangedListener {
+        @Override
+        public void onChanged(LocalDate month) {
+            mMonthToShow = month;
+            updateMonthName();
+            updateEnabledRange();
+            if (mUserOnDateChangedListener != null) {
+                mUserOnDateChangedListener.onChanged(month);
+            }
+        }
     }
 
 }
