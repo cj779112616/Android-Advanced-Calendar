@@ -2,8 +2,7 @@ package net.alexoro.calendar;
 
 import android.content.Context;
 import android.util.AttributeSet;
-import android.view.LayoutInflater;
-import android.view.ViewGroup;
+import android.view.*;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import org.joda.time.LocalDate;
@@ -20,10 +19,14 @@ import java.util.Locale;
  */
 public class CalendarView extends LinearLayout {
 
+    private static final int ACTION_MASK = 255; // MotionEvent.ACTION_MASK was introduce only in API #5
+
+    private ViewGroup vHeader;
     private TextView vMonthName;
     private CalendarGridView2 vGrid;
     private LocalDate mMonthToShow;
     private SimpleDateFormat mMonthFormat;
+    private long mTouchEventStartTime;
 
 
     public CalendarView(Context context) {
@@ -37,18 +40,20 @@ public class CalendarView extends LinearLayout {
         LayoutInflater mInflater = LayoutInflater.from(getContext());
         mInflater.inflate(R.layout.nac__header, this, true);
 
-        mMonthFormat = new SimpleDateFormat("LLLL yyyy");
-        mMonthToShow = new LocalDate();
-
-        vMonthName = (TextView) findViewById(R.id.month_name);
-        updateMonthName();
-
         vGrid = new CalendarGridView2(getContext());
         vGrid.setLayoutParams(new LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
         ));
         addView(vGrid);
+
+        vHeader = (ViewGroup) findViewById(R.id.header);
+
+        mMonthFormat = new SimpleDateFormat("LLLL yyyy");
+        mMonthToShow = new LocalDate();
+
+        vMonthName = (TextView) findViewById(R.id.month_name);
+        updateMonthName();
 
         int day = Calendar.getInstance().getFirstDayOfWeek();
         String[] dayNames = new DateFormatSymbols(Locale.getDefault()).getShortWeekdays();
@@ -143,6 +148,32 @@ public class CalendarView extends LinearLayout {
     protected void updateMonthName() {
         vMonthName.setText(
                 mMonthFormat.format(mMonthToShow.toDate()));
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        switch (event.getAction() & ACTION_MASK) {
+            case MotionEvent.ACTION_DOWN:
+                mTouchEventStartTime = System.currentTimeMillis();
+                return true;
+            case MotionEvent.ACTION_UP:
+                if (System.currentTimeMillis() - mTouchEventStartTime < (long) ViewConfiguration.getLongPressTimeout()) {
+                    mTouchEventStartTime = -1;
+                    onClickXY(event.getX(), event.getY());
+                }
+                return true;
+            default:
+                return super.onTouchEvent(event);
+        }
+    }
+
+    protected void onClickXY(float x, float y) {
+        int width = getWidth();
+        if (x < width/3) {
+            previousMonth();
+        } else if (x > width*2/3) {
+            nextMonth();
+        }
     }
 
 }
