@@ -2,6 +2,7 @@ package net.alexoro.calendar;
 
 import android.content.Context;
 import android.util.AttributeSet;
+import android.util.Pair;
 import android.view.*;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -21,13 +22,11 @@ public class CalendarView extends LinearLayout {
 
     private static final int ACTION_MASK = 255; // MotionEvent.ACTION_MASK was introduce only in API #5
 
-    private ViewGroup vHeader;
     private TextView vMonthName;
     private CalendarGridView vGrid;
     private LocalDate mMonthToShow;
     private SimpleDateFormat mMonthFormat;
     private long mTouchEventStartTime;
-
 
     public CalendarView(Context context) {
         this(context, null);
@@ -46,8 +45,6 @@ public class CalendarView extends LinearLayout {
                 ViewGroup.LayoutParams.WRAP_CONTENT
         ));
         addView(vGrid);
-
-        vHeader = (ViewGroup) findViewById(R.id.header);
 
         mMonthFormat = new SimpleDateFormat("LLLL yyyy");
         mMonthToShow = new LocalDate();

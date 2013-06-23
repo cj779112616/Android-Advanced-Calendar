@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/header"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
@@ -16,6 +15,9 @@
         android:textColor="#fff"
         android:textSize="16sp"
         android:textStyle="bold"
+        android:drawableLeft="@drawable/nac__arrow_left"
+        android:drawableRight="@drawable/nac__arrow_right"
+        android:drawablePadding="16dp"
         />
 
     <LinearLayout
