@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
-import net.alexoro.calendar.CalendarGridView;
 import net.alexoro.calendar.MonthTransition;
 import net.alexoro.calendar.OnDateClickListener;
 import net.alexoro.calendar.R;

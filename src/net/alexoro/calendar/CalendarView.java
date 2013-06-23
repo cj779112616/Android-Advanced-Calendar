@@ -23,7 +23,7 @@ public class CalendarView extends LinearLayout {
 
     private ViewGroup vHeader;
     private TextView vMonthName;
-    private CalendarGridView2 vGrid;
+    private CalendarGridView vGrid;
     private LocalDate mMonthToShow;
     private SimpleDateFormat mMonthFormat;
     private long mTouchEventStartTime;
@@ -40,7 +40,7 @@ public class CalendarView extends LinearLayout {
         LayoutInflater mInflater = LayoutInflater.from(getContext());
         mInflater.inflate(R.layout.nac__header, this, true);
 
-        vGrid = new CalendarGridView2(getContext());
+        vGrid = new CalendarGridView(getContext());
         vGrid.setLayoutParams(new LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT

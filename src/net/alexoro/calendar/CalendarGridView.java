@@ -10,7 +10,7 @@ import android.util.Pair;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
-import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.*;
 import android.view.animation.Interpolator;
 import org.joda.time.LocalDate;
 
@@ -25,63 +25,48 @@ import java.util.Map;
  */
 public class CalendarGridView extends View {
 
-    private static final int DAYS_IN_WEEK = 7;  // columns
     private static final int WEEKS_TO_SHOW = 6; // rows
+    private static final int DAYS_IN_WEEK = 7;  // columns
     private static final int ACTION_MASK = 255; // MotionEvent.ACTION_MASK was introduce only in API #5
 
-    static class MonthDrawHelper {
+    static class MonthHelper {
+        /**
+         * Area to draw in
+         */
         public Rect area;
-        public MonthDescriptor month;
+
+        /**
+         *  rows = week, columns = days
+         *  Size: WEEKS_TO_SHOW:DAYS_IN_WEEK
+         */
+        public DayCellDescription[][] month;
     }
 
-    static class WeekDrawHelper {
+    static class WeekHelper {
         public Rect area;
-        public MonthDescriptor month;
-        public int row;
+        public DayCellDescription[][] month;
+        int row;
     }
 
-    static class DayDrawHelper {
+    static class DayHelper {
+        public Cell cell;
         public Rect area;
-        public MonthDescriptor month;
-        public int row;
-        public int column;
-        public String value;
-
-        public CellDrawInfo cellDrawInfo;
-        public DayType dayType;
-
-        public float textSize;
-        public int textColor;
         public Bitmap background;
-
         public Paint cellBackgroundPaint;
         public Paint cellTextPaint;
         public float measuredTextWidth;
     }
 
-    static enum DayType {
-        TODAY,
-        THIS_MONTH,
-        NEIGHBOUR_MONTH
-    }
-
     static class AnimationHelper {
         public boolean active;
+        public DayCellDescription[][] month;
         public Interpolator interpolator;
         public long startTime;
         public long duration;
         public MonthTransition transition;
         public int direction;
-        public Bitmap previous;
-        public Bitmap current;
-        public Bitmap next;
+        public Rect area;
         public Paint paint;
-    }
-
-    static class CellDrawInfo {
-        public float textSize;
-        public StateListDrawable drawable;
-        public ColorStateList textColor;
     }
 
 
@@ -95,9 +80,12 @@ public class CalendarGridView extends View {
     private Pair<LocalDate, LocalDate> mEnabledRange;
     private Pair<LocalDate, LocalDate> mSelectedRange;
 
-    private MonthDrawHelper mMonthDrawHelper;
-    private WeekDrawHelper mWeekDrawHelper;
-    private DayDrawHelper mDayDrawHelper;
+    private MonthDescriptor mCurrentMonthDescriptor;
+    private DayCellDescription[][] mCurrentMonth;
+
+    private MonthHelper mMonthHelper;
+    private WeekHelper mWeekHelper;
+    private DayHelper mDayHelper;
     private AnimationHelper mAnimationHelper;
 
     private Map<Integer, String> mMapDayToString;
@@ -105,9 +93,9 @@ public class CalendarGridView extends View {
     private Cell mCurrentlyPressedCell;
     private OnDateClickListener mOnDateClickListener;
 
-    private CellDrawInfo mThisMonthCellInfo;
-    private CellDrawInfo mNeighbourMonthCellInfo;
-    private CellDrawInfo mTodayCellInfo;
+    private DayCellDescription.DayStyle mTodayCellInfo;
+    private DayCellDescription.DayStyle mThisMonthCellInfo;
+    private DayCellDescription.DayStyle mNeighbourMonthCellInfo;
     private int mCellSpacing;
 
 
@@ -129,7 +117,7 @@ public class CalendarGridView extends View {
             mMapDayToString.put(i, String.valueOf(i));
         }
         mTouchEventStartTime = -1;
-        mCurrentlyPressedCell = new Cell(-1, -1);
+        mCurrentlyPressedCell = null;
         mOnDateClickListener = null;
 
         initWithDefaults();
@@ -143,53 +131,83 @@ public class CalendarGridView extends View {
         mFirstDayOfWeek = Calendar.getInstance().getFirstDayOfWeek();
         mToday = new LocalDate();
         mMonthToShow = new LocalDate(mToday);
+        mEnabledRange = null;
+        mSelectedRange = null;
 
-        mMonthDrawHelper = new MonthDrawHelper();
-        mMonthDrawHelper.area = new Rect();
-        mMonthDrawHelper.month = getMonthDescriptor(mToday, 0);
+        //region Helpers init
+        mMonthHelper = new MonthHelper();
+        mMonthHelper.area = new Rect();
+        mMonthHelper.month = mCurrentMonth;
 
-        mWeekDrawHelper = new WeekDrawHelper();
-        mWeekDrawHelper.area = new Rect();
-        mWeekDrawHelper.month = mMonthDrawHelper.month;
-        mWeekDrawHelper.row = -1;
+        mWeekHelper = new WeekHelper();
+        mWeekHelper.area = new Rect();
+        mWeekHelper.month = mMonthHelper.month;
+        mWeekHelper.row = -1;
 
-        mDayDrawHelper = new DayDrawHelper();
-        mDayDrawHelper.area = new Rect();
-        mDayDrawHelper.month = mMonthDrawHelper.month;
-        mDayDrawHelper.row = -1;
-        mDayDrawHelper.column = -1;
-        mDayDrawHelper.cellBackgroundPaint = new Paint();
-        mDayDrawHelper.cellTextPaint = new Paint();
+        mDayHelper = new DayHelper();
+        mDayHelper.cell = new Cell(-1, -1);
+        mDayHelper.area = new Rect();
+        mDayHelper.background = null;
+        mDayHelper.cellBackgroundPaint = new Paint();
+        mDayHelper.cellTextPaint = new Paint();
+        mDayHelper.cellTextPaint.setAntiAlias(true);
+        mDayHelper.cellTextPaint.setStyle(Paint.Style.FILL);
+        mDayHelper.measuredTextWidth = -1f;
+        //endregion
 
         mAnimationHelper = new AnimationHelper();
         mAnimationHelper.interpolator = new AccelerateDecelerateInterpolator();
         mAnimationHelper.duration = 700;
+        mAnimationHelper.area = new Rect();
         mAnimationHelper.paint = new Paint();
         mAnimationHelper.paint.setAntiAlias(true);
         mAnimationHelper.paint.setStyle(Paint.Style.FILL);
 
-        mThisMonthCellInfo = new CellDrawInfo();
-        mThisMonthCellInfo.textSize = 14f;
-        mThisMonthCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_this_month);
-        mThisMonthCellInfo.textColor = getResources().getColorStateList(R.color.nac__this_month);
 
-        mNeighbourMonthCellInfo = new CellDrawInfo();
-        mNeighbourMonthCellInfo.textSize = 14f;
-        mNeighbourMonthCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_neighbour_month);
-        mNeighbourMonthCellInfo.textColor = getResources().getColorStateList(R.color.nac__neighbour_month);
-
-        mTodayCellInfo = new CellDrawInfo();
+        //region styles from xml
+        mTodayCellInfo = new DayCellDescription.DayStyle();
+        mTodayCellInfo.name = "Today";
         mTodayCellInfo.textSize = 14f;
         mTodayCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_today);
         mTodayCellInfo.textColor = getResources().getColorStateList(R.color.nac__today);
 
+        mThisMonthCellInfo = new DayCellDescription.DayStyle();
+        mThisMonthCellInfo.name = "ThisMonth";
+        mThisMonthCellInfo.textSize = 14f;
+        mThisMonthCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_this_month);
+        mThisMonthCellInfo.textColor = getResources().getColorStateList(R.color.nac__this_month);
+
+        mNeighbourMonthCellInfo = new DayCellDescription.DayStyle();
+        mNeighbourMonthCellInfo.name = "NeighbourMonth";
+        mNeighbourMonthCellInfo.textSize = 14f;
+        mNeighbourMonthCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_neighbour_month);
+        mNeighbourMonthCellInfo.textColor = getResources().getColorStateList(R.color.nac__neighbour_month);
+
         mCellSpacing = 2;
+        //endregion
+
+        show(mMonthToShow);
     }
 
     //endregion
 
 
     // region Set & Get properties
+
+    public void setDayCellSize(int width, int height) {
+        // TODO Here might be a bug when this method is called during the animation
+        mDayCellSize.set(0, 0, width, height);
+        requestLayout();
+        invalidate();
+    }
+
+    public int getDayCellWidth() {
+        return mDayCellSize.width();
+    }
+
+    public int getDayCellHeight() {
+        return mDayCellSize.height();
+    }
 
     public void setMonthTransition(MonthTransition transition) {
         mMonthTransition = transition;
@@ -211,6 +229,8 @@ public class CalendarGridView extends View {
         mEnabledRange = new Pair<LocalDate, LocalDate>(
                 new LocalDate(startIncluding),
                 new LocalDate(endIncluding));
+        updateEnabledSelectedMonthParams();
+        invalidate();
     }
 
     public LocalDate getEnabledRangeStart() {
@@ -231,6 +251,8 @@ public class CalendarGridView extends View {
         mSelectedRange = new Pair<LocalDate, LocalDate>(
                 new LocalDate(startIncluding),
                 new LocalDate(endIncluding));
+        updateEnabledSelectedMonthParams();
+        invalidate();
     }
 
     public LocalDate getSelectedRangeStart() {
@@ -257,11 +279,11 @@ public class CalendarGridView extends View {
             return;
         }
         if (mMonthTransition == MonthTransition.NONE) {
-            mMonthToShow = mMonthToShow.plusMonths(1);
+            show(mMonthToShow.plusMonths(1));
         } else {
             setupAnimation(1);
+            invalidate();
         }
-        invalidate();
     }
 
     public void previousMonth() {
@@ -269,68 +291,40 @@ public class CalendarGridView extends View {
             return;
         }
         if (mMonthTransition == MonthTransition.NONE) {
-            mMonthToShow = mMonthToShow.minusMonths(1);
+            show(mMonthToShow.minusMonths(1));
         } else {
             setupAnimation(-1);
+            invalidate();
         }
-        invalidate();
     }
 
     public void show(LocalDate month) {
         mMonthToShow = new LocalDate(month);
+        mCurrentMonthDescriptor = new MonthDescriptor(mMonthToShow.getYear(),
+                mMonthToShow.getMonthOfYear() - 1, mFirstDayOfWeek);
+        mCurrentMonth = createDefaultDayCellDescriptions(mCurrentMonthDescriptor);
         invalidate();
     }
 
     //endregion
 
 
-    //region Animation params
+    //region Animation
 
     protected void setupAnimation(int direction) {
+        MonthDescriptor md = new MonthDescriptor(mMonthToShow.getYear(),
+                mMonthToShow.getMonthOfYear() - 1, mFirstDayOfWeek);
+        if (direction < 0) {
+            md.previousMonth();
+        } else {
+            md.nextMonth();
+        }
+        mAnimationHelper.month = createDefaultDayCellDescriptions(md);
+
         mAnimationHelper.active = true;
-
-        mMonthDrawHelper.area.set(mGridSize);
-        mMonthDrawHelper.month = getMonthDescriptor(mMonthToShow, -1);
-        mAnimationHelper.previous = createBitmapCacheAsGridSize();
-        createBitmapCacheForMonth(mMonthDrawHelper, mAnimationHelper.previous);
-
-        mMonthDrawHelper.area.set(mGridSize);
-        mMonthDrawHelper.month = getMonthDescriptor(mMonthToShow, 0);
-        mAnimationHelper.current = createBitmapCacheAsGridSize();
-        createBitmapCacheForMonth(mMonthDrawHelper, mAnimationHelper.current);
-
-        mMonthDrawHelper.area.set(mGridSize);
-        mMonthDrawHelper.month = getMonthDescriptor(mMonthToShow, 1);
-        mAnimationHelper.next = createBitmapCacheAsGridSize();
-        createBitmapCacheForMonth(mMonthDrawHelper, mAnimationHelper.next);
-
         mAnimationHelper.startTime = System.currentTimeMillis();
         mAnimationHelper.direction = direction;
         mAnimationHelper.transition = mMonthTransition;
-    }
-
-    protected void cleanAnimationBitmaps() {
-        if (mAnimationHelper.previous != null) {
-            mAnimationHelper.previous.recycle();
-            mAnimationHelper.previous = null;
-        }
-        if (mAnimationHelper.current != null) {
-            mAnimationHelper.current.recycle();
-            mAnimationHelper.current = null;
-        }
-        if (mAnimationHelper.next != null) {
-            mAnimationHelper.next.recycle();
-            mAnimationHelper.next = null;
-        }
-    }
-
-    protected Bitmap createBitmapCacheAsGridSize() {
-        return Bitmap.createBitmap(mGridSize.width(), mGridSize.height(), Bitmap.Config.ARGB_8888);
-    }
-
-    protected void createBitmapCacheForMonth(MonthDrawHelper args, Bitmap result) {
-        Canvas canvas = new Canvas(result);
-        drawMonth(canvas, args);
     }
 
     //endregion
@@ -347,11 +341,11 @@ public class CalendarGridView extends View {
         mGridSize.bottom = mDayCellSize.height() * WEEKS_TO_SHOW + mCellSpacing * (WEEKS_TO_SHOW - 1);
 
         // create a temp bitmap
-        if (mDayDrawHelper.background != null) {
-            mDayDrawHelper.background.recycle();
-            mDayDrawHelper.background = null;
+        if (mDayHelper.background != null) {
+            mDayHelper.background.recycle();
+            mDayHelper.background = null;
         }
-        mDayDrawHelper.background = Bitmap.createBitmap(
+        mDayHelper.background = Bitmap.createBitmap(
                 mDayCellSize.width(), mDayCellSize.height(), Bitmap.Config.ARGB_8888);
 
         setMeasuredDimension(mGridSize.width(), mGridSize.height());
@@ -364,14 +358,9 @@ public class CalendarGridView extends View {
         if (mAnimationHelper.active) {
             drawAnimationMonths(canvas);
         } else {
-            drawMonths(canvas);
+            drawCurrentMonth(canvas);
         }
     }
-
-    //endregion
-
-
-    //region Animation drawing
 
     protected void drawAnimationMonths(Canvas canvas) {
         // do animation via translation the canvas
@@ -380,12 +369,15 @@ public class CalendarGridView extends View {
         translate *= -mAnimationHelper.direction;
 
         if (animOffset < mAnimationHelper.duration) {
+            //TODO There is a bug at the end of animation because of fake mCellSpacing
             if (mAnimationHelper.transition == MonthTransition.HORIZONTAL) {
-                canvas.translate((int)(translate * mGridSize.width()), 0);
+                canvas.translate((int)(translate * (mGridSize.width() + mCellSpacing) ), 0);
             } else {
-                canvas.translate(0, (int)(translate * mGridSize.height()));
+                canvas.translate(0, (int)(translate * (mGridSize.height() + mCellSpacing)));
             }
-            drawAnimationMonthsOnCanvas(canvas);
+            drawAnimationNeighbourMonth(canvas);
+            drawCurrentMonth(canvas);
+            invalidate();
         } else {
             // set new current month
             if (mAnimationHelper.direction > 0) {
@@ -393,58 +385,41 @@ public class CalendarGridView extends View {
             } else {
                 mMonthToShow = mMonthToShow.minusMonths(1);
             }
-
-            // TODO We should re-draw canvas to avoid "black-blink". Currently it's a hotfix. Cause is unknown.
-            cleanAnimationBitmaps();
-            mMonthDrawHelper.area.set(mGridSize);
-            mMonthDrawHelper.month = getMonthDescriptor(mMonthToShow, 0);
-            mAnimationHelper.current = createBitmapCacheAsGridSize();
-            createBitmapCacheForMonth(mMonthDrawHelper, mAnimationHelper.current);
-            drawAnimationMonth(canvas, mMonthDrawHelper, mAnimationHelper.current);
-            cleanAnimationBitmaps();
-
             mAnimationHelper.active = false;
+
+            // The re-draw must be used to avoid "black-blink" of view
+            // The cause is that show() is slowly operation (~200ms) and must be not called
+            // while the canvas is empty
+            // TODO It is better to calculate all before the animation
+            mMonthHelper.area.left = 0;
+            mMonthHelper.area.top = 0;
+            mMonthHelper.month = mAnimationHelper.month;
+            drawMonth(canvas, mMonthHelper);
+
+            show(mMonthToShow);
+            invalidate();
         }
-        invalidate();
     }
 
-    protected void drawAnimationMonthsOnCanvas(Canvas canvas) {
+    protected void drawAnimationNeighbourMonth(Canvas canvas) {
+        //TODO There is a bug at the end of animation because of fake mCellSpacing
         if (mAnimationHelper.transition == MonthTransition.HORIZONTAL) {
-            // draw previous month
-            mMonthDrawHelper.area.left = -mGridSize.width();
-            mMonthDrawHelper.area.top = 0;
-            drawAnimationMonth(canvas, mMonthDrawHelper, mAnimationHelper.previous);
-
-            // draw next month
-            mMonthDrawHelper.area.left = mGridSize.width();
-            mMonthDrawHelper.area.top = 0;
-            drawAnimationMonth(canvas, mMonthDrawHelper, mAnimationHelper.next);
+            mMonthHelper.area.left = (mGridSize.width() + mCellSpacing) * mAnimationHelper.direction;
+            mMonthHelper.area.top = 0;
         }
-
+        //TODO There is a bug at the end of animation because of fake mCellSpacing
         if (mAnimationHelper.transition == MonthTransition.VERTICAL) {
-            // draw previous month
-            mMonthDrawHelper.area.left = 0;
-            mMonthDrawHelper.area.top = -mGridSize.height();
-            drawAnimationMonth(canvas, mMonthDrawHelper, mAnimationHelper.previous);
-
-            // draw next month
-            mMonthDrawHelper.area.left = 0;
-            mMonthDrawHelper.area.top = mGridSize.height();
-            drawAnimationMonth(canvas, mMonthDrawHelper, mAnimationHelper.next);
+            mMonthHelper.area.left = 0;
+            mMonthHelper.area.top = (mGridSize.height() + mCellSpacing) * mAnimationHelper.direction;
         }
-
-        // draw current month
-        mMonthDrawHelper.area.left = 0;
-        mMonthDrawHelper.area.top = 0;
-        drawAnimationMonth(canvas, mMonthDrawHelper, mAnimationHelper.current);
+        mMonthHelper.month = mAnimationHelper.month;
+        drawMonth(canvas, mMonthHelper);
     }
 
-    protected void drawAnimationMonth(Canvas canvas, MonthDrawHelper h, Bitmap cachedMonth) {
-        canvas.drawBitmap(
-                cachedMonth,
-                h.area.left,
-                h.area.top,
-                mAnimationHelper.paint);
+    protected void drawCurrentMonth(Canvas canvas) {
+        mMonthHelper.area.set(0, 0, mGridSize.width(), mGridSize.height());
+        mMonthHelper.month = mCurrentMonth;
+        drawMonth(canvas, mMonthHelper);
     }
 
     //endregion
@@ -452,43 +427,40 @@ public class CalendarGridView extends View {
 
     //region Draw static months
 
-    protected void drawMonths(Canvas canvas) {
-        // draw current month
-        mMonthDrawHelper.area.set(0, 0, mGridSize.width(), mGridSize.height());
-        mMonthDrawHelper.month = getMonthDescriptor(mMonthToShow, 0);
-        drawMonth(canvas, mMonthDrawHelper);
-    }
-
-    protected void drawMonth(Canvas canvas, MonthDrawHelper h) {
-        for (int i = 0; i < h.month.getRowsCount(); i++) {
-            mWeekDrawHelper.area.set(
+    protected void drawMonth(Canvas canvas, MonthHelper h) {
+        for (int i = 0; i < WEEKS_TO_SHOW; i++) {
+            mWeekHelper.area.set(
                     h.area.left,
                     h.area.top + i * mDayCellSize.height() + i * mCellSpacing,
                     h.area.right,
                     h.area.top + i * mDayCellSize.height() + i * mCellSpacing + mDayCellSize.height());
-            mWeekDrawHelper.month = h.month;
-            mWeekDrawHelper.row = i;
-            drawWeek(canvas, mWeekDrawHelper);
+            mWeekHelper.month = h.month;
+            mWeekHelper.row = i;
+            drawWeek(canvas, mWeekHelper);
         }
     }
 
-    protected void drawWeek(Canvas canvas, WeekDrawHelper h) {
-        for (int i = 0; i < h.month.getColumnsCount(); i++) {
-            mDayDrawHelper.area.set(
+    protected void drawWeek(Canvas canvas, WeekHelper h) {
+        for (int i = 0; i < DAYS_IN_WEEK; i++) {
+            mDayHelper.cell.update(h.row, i);
+            mDayHelper.area.set(
                     h.area.left + i * mDayCellSize.width() + i * mCellSpacing,
                     h.area.top,
                     h.area.left + i * mDayCellSize.width() + i * mCellSpacing + mDayCellSize.width(),
                     h.area.bottom);
-            mDayDrawHelper.month = h.month;
-            mDayDrawHelper.row = h.row;
-            mDayDrawHelper.column = i;
-            mDayDrawHelper.value = mMapDayToString.get(h.month.getDayAt(h.row, mDayDrawHelper.column));
-            drawDay(canvas, mDayDrawHelper);
+            drawDay(canvas, h.month[h.row][i], mDayHelper);
         }
     }
 
-    protected void drawDay(Canvas canvas, DayDrawHelper h) {
-        dispatchCellInfo(h);
+    protected void drawDay(Canvas canvas, DayCellDescription d, DayHelper h) {
+        // get background
+        int[] states = getStatesAsSet(
+                d.isEnabled,
+                d.isSelected,
+                d.isPressed);
+
+        d.dayStyle.drawable.setState(states);
+        drawableToBitmap(d.dayStyle.drawable, h.background);
 
         canvas.drawBitmap(
                 h.background,
@@ -496,59 +468,15 @@ public class CalendarGridView extends View {
                 h.area.top,
                 h.cellBackgroundPaint);
 
-        h.cellTextPaint.setAntiAlias(true);
-        h.cellTextPaint.setStyle(Paint.Style.FILL);
-        h.cellTextPaint.setTextSize(h.textSize);
-        h.cellTextPaint.setColor(h.textColor);
-        h.measuredTextWidth = h.cellBackgroundPaint.measureText(h.value);
+        String value = mMapDayToString.get(d.day);
+        h.cellTextPaint.setTextSize(d.dayStyle.textSize);
+        h.cellTextPaint.setColor(getTextColorForState(d.dayStyle.textColor, states));
+        h.measuredTextWidth = h.cellBackgroundPaint.measureText(value);
         canvas.drawText(
-                h.value,
+                value,
                 h.area.centerX() - h.measuredTextWidth/2,
-                h.area.centerY() + h.textSize/2 - 2, // трик-хуик, to make it really in current. getTextBounds not helps
+                h.area.centerY() + d.dayStyle.textSize/2 - 2, // трик-хуик, to make it really in current. getTextBounds not helps
                 h.cellTextPaint);
-    }
-
-    protected void dispatchCellInfo(DayDrawHelper h) {
-        boolean isEnabled  = false;
-        boolean isSelected = false;
-        boolean isPressed  = false;
-
-        if (h.month.compareToDate(h.row, h.column, mToday) == 0) {
-            h.dayType = DayType.TODAY;
-        } else if (h.month.isWithinCurrentMonth(h.row, h.column)) {
-            h.dayType = DayType.THIS_MONTH;
-        } else {
-            h.dayType = DayType.NEIGHBOUR_MONTH;
-        }
-
-        if (isDayEnabled(h.month, h.row, h.column)) {
-            isEnabled = true;
-        }
-        if (isDaySelected(h.month, h.row, h.column)) {
-            isSelected = true;
-        }
-        if (isDayPressed(h.row, h.column)) {
-            isPressed = true;
-        }
-
-        switch (h.dayType) {
-            case TODAY:
-                h.cellDrawInfo = mTodayCellInfo;
-                break;
-            case THIS_MONTH:
-                h.cellDrawInfo = mThisMonthCellInfo;
-                break;
-            case NEIGHBOUR_MONTH:
-                h.cellDrawInfo = mNeighbourMonthCellInfo;
-                break;
-        }
-
-        int[] states = getStatesAsSet(isEnabled, isSelected, isPressed);
-
-        h.textSize = h.cellDrawInfo.textSize;
-        h.textColor = getTextColorForState(h.cellDrawInfo.textColor, states);
-        h.cellDrawInfo.drawable.setState(states);
-        drawableToBitmap(h.cellDrawInfo.drawable, h.background);
     }
 
     //endregion
@@ -561,39 +489,46 @@ public class CalendarGridView extends View {
         switch (event.getAction() & ACTION_MASK) {
             case MotionEvent.ACTION_DOWN:
                 mTouchEventStartTime = System.currentTimeMillis();
-                onCellPressed(getCellForCoordinates(event.getX(), event.getY()));
+                onDayCellPressed(getDayCellForCoordinates(event.getX(), event.getY()));
                 return true;
             case MotionEvent.ACTION_MOVE:
-                onCellPressed(getCellForCoordinates(event.getX(), event.getY()));
+                onDayCellPressed(getDayCellForCoordinates(event.getX(), event.getY()));
                 return true;
             case MotionEvent.ACTION_UP:
                 if (System.currentTimeMillis() - mTouchEventStartTime < (long) ViewConfiguration.getLongPressTimeout()) {
                     mTouchEventStartTime = -1;
-                    onClick(getCellForCoordinates(event.getX(), event.getY()),
-                            getDateForCoordinates(event.getX(), event.getY()));
+                    Cell cell = getDayCellForCoordinates(event.getX(), event.getY());
+                    if (cell != null) {
+                        onClick(cell);
+                    }
                 }
-                onCellPressed(null);
+                onDayCellPressed(null);
                 return true;
             default:
                 return super.onTouchEvent(event);
         }
     }
 
-    protected void onCellPressed(Cell cell) {
+    protected void onDayCellPressed(Cell cell) {
+        if (mCurrentlyPressedCell != null) {
+            mCurrentMonth[mCurrentlyPressedCell.row][mCurrentlyPressedCell.column].isPressed = false;
+        }
         if (cell == null) {
-            mCurrentlyPressedCell.row = -1;
-            mCurrentlyPressedCell.column = -1;
+            mCurrentlyPressedCell = null;
         } else {
-            mCurrentlyPressedCell.row = cell.row;
-            mCurrentlyPressedCell.column = cell.column;
+            mCurrentlyPressedCell = cell;
+            mCurrentMonth[cell.row][cell.column].isPressed = true;
         }
         invalidate();
     }
 
-    protected void onClick(Cell cell, LocalDate date) {
-        MonthDescriptor md = getMonthDescriptor(mMonthToShow, 0);
-        if (mOnDateClickListener != null && isDayEnabled(md, cell.row, cell.column)) {
-            mOnDateClickListener.onClick(date);
+    protected void onClick(Cell cell) {
+        if (mOnDateClickListener != null
+                && mCurrentMonth[cell.row][cell.column].isEnabled) {
+            mOnDateClickListener.onClick(new LocalDate(
+                    mCurrentMonth[cell.row][cell.column].year,
+                    mCurrentMonth[cell.row][cell.column].month + 1,
+                    mCurrentMonth[cell.row][cell.column].day));
         }
     }
 
@@ -602,47 +537,43 @@ public class CalendarGridView extends View {
 
     //region Utils
 
-    protected MonthDescriptor getMonthDescriptor(LocalDate month, int monthOffset) {
-        if (monthOffset == 0) {
-            return new MonthDescriptor(month.getYear(), month.getMonthOfYear() - 1, mFirstDayOfWeek);
-        } else {
-            return getMonthDescriptor(month.plusMonths(monthOffset), 0);
-        }
-    }
-
     protected boolean isDayEnabled(MonthDescriptor md, int row, int column) {
-        if (mEnabledRange == null) {
-            return true;
-        } else {
-            return md.compareToDate(row, column, mEnabledRange.first) >= 0
-                    && md.compareToDate(row, column, mEnabledRange.second) <= 0;
-        }
+        return mEnabledRange == null
+                || md.compareToDate(row, column, mEnabledRange.first) >= 0
+                && md.compareToDate(row, column, mEnabledRange.second) <= 0;
     }
 
     protected boolean isDaySelected(MonthDescriptor md, int row, int column) {
-        if (mSelectedRange == null) {
-            return true;
-        } else {
-            return md.compareToDate(row, column, mSelectedRange.first) >= 0
-                    && md.compareToDate(row, column, mSelectedRange.second) <= 0;
-        }
+        return mSelectedRange != null
+                && md.compareToDate(row, column, mSelectedRange.first) >= 0
+                && md.compareToDate(row, column, mSelectedRange.second) <= 0;
     }
 
     protected boolean isDayPressed(int row, int column) {
-        return row == mCurrentlyPressedCell.row
+        return mCurrentlyPressedCell != null
+                && row == mCurrentlyPressedCell.row
                 && column == mCurrentlyPressedCell.column;
     }
 
-    protected Cell getCellForCoordinates(float x, float y) {
-        return new Cell(
-                (int) y / mDayCellSize.height(),
-                (int) x / mDayCellSize.width());
-    }
+    protected Cell getDayCellForCoordinates(float x, float y) {
+        if (x > mGridSize.left && x < mGridSize.right
+                && y > mGridSize.top && y < mGridSize.bottom) {
+            float cX = 0, cY = 0;
+            int row = -1, col = -1; // it will be always incremented at least ones
 
-    protected LocalDate getDateForCoordinates(float x, float y) {
-        Cell cell = getCellForCoordinates(x, y);
-        return new MonthDescriptor(mMonthToShow.getYear(), mMonthToShow.getMonthOfYear() - 1, mFirstDayOfWeek)
-                .getLocalDate(cell.row, cell.column);
+            while (cY < y) {
+                cY += mDayCellSize.height() + mCellSpacing;
+                row++;
+            }
+            while (cX < x) {
+                cX += mDayCellSize.width() + mCellSpacing;
+                col++;
+            }
+
+            return new Cell(row, col);
+        } else {
+            return null;
+        }
     }
 
     protected int[] getStatesAsSet(boolean isEnabled, boolean isSelected, boolean isPressed) {
@@ -679,5 +610,66 @@ public class CalendarGridView extends View {
     }
 
     //endregion
+
+
+    //region CellDescription generator and updater
+
+    protected DayCellDescription[][] createDefaultDayCellDescriptions(MonthDescriptor mdh) {
+        DayCellDescription[][] r = new DayCellDescription[WEEKS_TO_SHOW][DAYS_IN_WEEK];
+
+        DayCellDescription c;
+        int day;
+        for (int row = 0; row < WEEKS_TO_SHOW; row++) {
+            for (int col = 0; col < DAYS_IN_WEEK; col++) {
+                day = mdh.getDayAt(row, col);
+                c = new DayCellDescription();
+                if (day < 32 && row < 2) { // it is previous month
+                    mdh.previousMonth();
+                    c.year = mdh.getYear();
+                    c.month = mdh.getMonth();
+                    c.day = day;
+                    mdh.nextMonth();
+                } else if (day > 1 && row > 4) { // it is next month
+                    mdh.nextMonth();
+                    c.year = mdh.getYear();
+                    c.month = mdh.getMonth();
+                    c.day = day;
+                    mdh.previousMonth();
+                } else { // it is this month
+                    c.year = mdh.getYear();
+                    c.month = mdh.getMonth();
+                    c.day = day;
+                }
+                c.isEnabled = isDayEnabled(mdh, row, col);
+                c.isSelected = isDaySelected(mdh, row, col);
+                c.isPressed = isDayPressed(row, col);
+
+                if (mdh.compareToDate(row, col, mToday) == 0) {
+                    c.dayStyle = mTodayCellInfo;
+                } else if (mdh.isWithinCurrentMonth(row, col)) {
+                    c.dayStyle = mThisMonthCellInfo;
+                } else {
+                    c.dayStyle = mNeighbourMonthCellInfo;
+                }
+
+                r[row][col] = c;
+            }
+        }
+
+        return r;
+    }
+
+    protected void updateEnabledSelectedMonthParams() {
+        for (int row = 0; row < WEEKS_TO_SHOW; row++) {
+            for (int col = 0; col < DAYS_IN_WEEK; col++) {
+                mCurrentMonth[row][col].isEnabled = isDayEnabled(mCurrentMonthDescriptor, row, col);
+                mCurrentMonth[row][col].isSelected = isDaySelected(mCurrentMonthDescriptor, row, col);
+                mCurrentMonth[row][col].isPressed = isDayPressed(row, col);
+            }
+        }
+    }
+
+    //endregion
+
 
 }
