@@ -6,7 +6,6 @@ import android.graphics.*;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.StateListDrawable;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.util.Pair;
 import android.view.MotionEvent;
 import android.view.View;
@@ -95,9 +94,10 @@ class CalendarGridView extends View {
     private OnDateClickListener mOnDateClickListener;
     private OnDateChangedListener mOnDateChangedListener;
 
-    private DayCellDescription.DayStyle mTodayCellInfo;
-    private DayCellDescription.DayStyle mThisMonthCellInfo;
-    private DayCellDescription.DayStyle mNeighbourMonthCellInfo;
+    private DayCellDescription.DayStyle mTodayDayStyle;
+    private DayCellDescription.DayStyle mThisMonthDayStyle;
+    private DayCellDescription.DayStyle mPreviousMonthDayStyle;
+    private DayCellDescription.DayStyle mNextMonthDayStyle;
     private int mCellSpacing;
 
 
@@ -167,23 +167,29 @@ class CalendarGridView extends View {
 
 
         //region styles from xml
-        mTodayCellInfo = new DayCellDescription.DayStyle();
-        mTodayCellInfo.name = "Today";
-        mTodayCellInfo.textSize = 14f;
-        mTodayCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_today);
-        mTodayCellInfo.textColor = getResources().getColorStateList(R.color.nac__today);
+        mTodayDayStyle = new DayCellDescription.DayStyle();
+        mTodayDayStyle.name = "Today";
+        mTodayDayStyle.textSize = 14f;
+        mTodayDayStyle.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_today);
+        mTodayDayStyle.textColor = getResources().getColorStateList(R.color.nac__today);
 
-        mThisMonthCellInfo = new DayCellDescription.DayStyle();
-        mThisMonthCellInfo.name = "ThisMonth";
-        mThisMonthCellInfo.textSize = 14f;
-        mThisMonthCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_this_month);
-        mThisMonthCellInfo.textColor = getResources().getColorStateList(R.color.nac__this_month);
+        mThisMonthDayStyle = new DayCellDescription.DayStyle();
+        mThisMonthDayStyle.name = "ThisMonth";
+        mThisMonthDayStyle.textSize = 14f;
+        mThisMonthDayStyle.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_this_month);
+        mThisMonthDayStyle.textColor = getResources().getColorStateList(R.color.nac__this_month);
 
-        mNeighbourMonthCellInfo = new DayCellDescription.DayStyle();
-        mNeighbourMonthCellInfo.name = "NeighbourMonth";
-        mNeighbourMonthCellInfo.textSize = 14f;
-        mNeighbourMonthCellInfo.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_neighbour_month);
-        mNeighbourMonthCellInfo.textColor = getResources().getColorStateList(R.color.nac__neighbour_month);
+        mPreviousMonthDayStyle = new DayCellDescription.DayStyle();
+        mPreviousMonthDayStyle.name = "PreviousMonth";
+        mPreviousMonthDayStyle.textSize = 14f;
+        mPreviousMonthDayStyle.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_previous_month);
+        mPreviousMonthDayStyle.textColor = getResources().getColorStateList(R.color.nac__previous_month);
+
+        mNextMonthDayStyle = new DayCellDescription.DayStyle();
+        mNextMonthDayStyle.name = "NextMonth";
+        mNextMonthDayStyle.textSize = 14f;
+        mNextMonthDayStyle.drawable = (StateListDrawable) getResources().getDrawable(R.drawable.nac__bg_next_month);
+        mNextMonthDayStyle.textColor = getResources().getColorStateList(R.color.nac__next_month);
 
         mCellSpacing = 2;
         //endregion
@@ -654,29 +660,28 @@ class CalendarGridView extends View {
                     c.year = mdh.getYear();
                     c.month = mdh.getMonth();
                     c.day = day;
+                    c.dayStyle = mPreviousMonthDayStyle;
                     mdh.nextMonth();
                 } else if (day < 10 && row > 3) { // it is next month
                     mdh.nextMonth();
                     c.year = mdh.getYear();
                     c.month = mdh.getMonth();
                     c.day = day;
+                    c.dayStyle = mNextMonthDayStyle;
                     mdh.previousMonth();
                 } else { // it is this month
                     c.year = mdh.getYear();
                     c.month = mdh.getMonth();
                     c.day = day;
+                    if (mdh.compareToDate(row, col, mToday) == 0) {
+                        c.dayStyle = mTodayDayStyle;
+                    } else {
+                        c.dayStyle = mThisMonthDayStyle;
+                    }
                 }
                 c.isEnabled = isDayEnabled(mdh, row, col);
                 c.isSelected = isDaySelected(mdh, row, col);
                 c.isPressed = isDayPressed(row, col);
-
-                if (mdh.compareToDate(row, col, mToday) == 0) {
-                    c.dayStyle = mTodayCellInfo;
-                } else if (mdh.isWithinCurrentMonth(row, col)) {
-                    c.dayStyle = mThisMonthCellInfo;
-                } else {
-                    c.dayStyle = mNeighbourMonthCellInfo;
-                }
 
                 r[row][col] = c;
             }
