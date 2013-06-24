@@ -2,6 +2,7 @@ package net.alexoro.calendar;
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 import android.util.AttributeSet;
 import android.util.Pair;
 import android.view.*;
@@ -49,6 +50,9 @@ public class CalendarView extends LinearLayout {
 
     public CalendarView(Context context, AttributeSet attrs) {
         super(context, attrs);
+        if (Build.VERSION.SDK_INT >= 11) {
+            setLayerType(LAYER_TYPE_SOFTWARE, null);
+        }
 
         mMonthToShow = new LocalDate();
         mEnabledRange = new Pair<LocalDate, LocalDate>(null, null);
