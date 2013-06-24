@@ -6,6 +6,7 @@ import android.graphics.*;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.StateListDrawable;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.util.Pair;
 import android.view.MotionEvent;
 import android.view.View;
@@ -494,7 +495,7 @@ class CalendarGridView extends View {
         String value = mMapDayToString.get(d.day);
         h.cellTextPaint.setTextSize(d.dayStyle.textSize);
         h.cellTextPaint.setColor(getTextColorForState(d.dayStyle.textColor, states));
-        h.measuredTextWidth = h.cellBackgroundPaint.measureText(value);
+        h.measuredTextWidth = h.cellTextPaint.measureText(value);
         canvas.drawText(
                 value,
                 h.area.centerX() - h.measuredTextWidth/2,
@@ -627,6 +628,8 @@ class CalendarGridView extends View {
     }
 
     protected void drawableToBitmap(Drawable drawable, Bitmap target) {
+//        drawable.setState(new int[] { android.R.attr.state_selected });
+
         Canvas canvas = new Canvas(target);
         drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
         drawable.draw(canvas);
