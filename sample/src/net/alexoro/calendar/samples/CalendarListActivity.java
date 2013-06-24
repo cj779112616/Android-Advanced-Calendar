@@ -1,4 +1,4 @@
-package tests;
+package net.alexoro.calendar.samples;
 
 import android.app.Activity;
 import android.content.Context;
@@ -7,8 +7,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
-import android.widget.Toast;
-import net.alexoro.calendar.*;
+import net.alexoro.calendar.CalendarView;
+import net.alexoro.calendar.SelectionType;
 import org.joda.time.LocalDate;
 import org.joda.time.Months;
 

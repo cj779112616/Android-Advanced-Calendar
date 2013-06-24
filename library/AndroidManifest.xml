@@ -9,13 +9,13 @@
 
     <application>
 
-        <activity android:name="tests.CalendarActivity">
+        <activity android:name="net.alexoro.calendar.samples.CalendarActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name="tests.CalendarListActivity">
+        <activity android:name="net.alexoro.calendar.samples.CalendarListActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>

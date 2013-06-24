@@ -1,4 +1,4 @@
-package tests;
+package net.alexoro.calendar.samples;
 
 import android.app.Activity;
 import android.os.Bundle;
