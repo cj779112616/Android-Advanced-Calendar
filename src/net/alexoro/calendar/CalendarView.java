@@ -113,7 +113,8 @@ public class CalendarView extends LinearLayout {
 
     protected void updateEnabledRange() {
         if (mAllowMonthChangeByUi) {
-            Drawable left = null, right = null;
+            Drawable transparent = getResources().getDrawable(R.drawable.nac__arrow_transparent);
+            Drawable left = transparent, right = transparent;
             if (mEnabledRange.first != null
                     && compareByMonth(mMonthToShow.minusMonths(1), mEnabledRange.first) >= 0) {
                 left = getResources().getDrawable(R.drawable.nac__arrow_left);
